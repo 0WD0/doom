@@ -1,0 +1,92 @@
+#+title:    :input rime
+#+subtitle: Rime input method for Chinese
+#+created:  July 29, 2025
+#+since:    v3.0.0
+
+* Description :unfold:
+This module provides Chinese input method support using the [[https://github.com/DogLooksGood/emacs-rime][emacs-rime]] package,
+which directly integrates with the [[https://rime.im/][Rime]] input method engine.
+
+** Maintainers
+*This module needs a maintainer.* [[doom-contrib-maintainer:][Become a maintainer?]]
+
+** Module flags
+- +childframe ::
+  Display rime candidates in a [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Child-Frames.html][child frame]] using posframe.
+
+** Packages
+- [[doom-package:rime]]
+- [[doom-package:pangu-spacing]]
+- [[doom-package:posframe]] if [[doom-module:+childframe]]
+
+** Hacks
+- ~org-html-paragraph~ has been modified to join consecutive Chinese lines into
+  a single long line without unwanted space (when exporting org-mode to html).
+
+** TODO Changelog
+# This section will be machine generated. Don't edit it by hand.
+/This module does not have a changelog yet./
+
+* Installation
+[[id:01cffea4-3329-45e2-a892-95a384ab2338][Enable this module in your ~doom!~ block.]]
+
+This module requires:
+- Emacs must be built with dynamic module support, i.e. compiled with the
+  =--with-modules= option.
+- =librime= installed on your system.
+- A C compiler to build the dynamic module.
+
+** Installing librime
+*** macOS
+#+begin_src sh
+brew install librime
+#+end_src
+
+*** Ubuntu/Debian
+#+begin_src sh
+sudo apt install librime-dev
+#+end_src
+
+*** Arch Linux
+#+begin_src sh
+sudo pacman -S librime
+#+end_src
+
+* Usage
+After installation, you can toggle the input method with =C-\= or =M-x toggle-input-method=.
+
+The default input method will be set to "rime".
+
+* Configuration
+** Basic configuration
+The module sets up rime with sensible defaults:
+- User data directory is set to =~/.doom.d/.local/cache/rime/=
+- Candidate display uses posframe by default, or child frame if =+childframe= flag is enabled
+
+** Custom rime configuration
+You can customize rime by placing configuration files in the rime user data directory.
+Common files include:
+- =default.yaml= - Global settings
+- =luna_pinyin.schema.yaml= - Pinyin input schema
+- =double_pinyin.schema.yaml= - Double pinyin schema
+
+** Evil integration
+The module automatically integrates with evil-mode to prevent conflicts with evil-escape.
+
+* Troubleshooting
+** Dynamic module compilation fails
+Ensure you have a C compiler and librime development headers installed.
+
+** Rime schemas not working
+Check that your rime configuration files are properly placed in the user data directory
+and that librime can find them.
+
+* Frequently asked questions
+** How is this different from the Chinese module?
+This module uses emacs-rime directly, while the Chinese module uses pyim with optional rime backend.
+This provides better integration and performance with rime.
+
+* TODO Appendix
+#+begin_quote
+ 󱌣 This module has no appendix yet. [[doom-contrib-module:][Write one?]]
+#+end_quote

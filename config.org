@@ -1,0 +1,137 @@
+#+begin_src emacs-lisp
+;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+#+end_src
+这个词法作用域配置是必要的
+
+Here are some additional functions/macros that will help you configure Doom.
+
+- `load!' for loading external *.el files relative to this one
+- `use-package!' for configuring packages
+- `after!' for running code after a package has loaded
+- `add-load-path!' for adding directories to the `load-path', relative to
+  this file. Emacs searches the `load-path' when you load packages with
+  `require' or `use-package'.
+- `map!' for binding new keys
+
+To get information about any of these functions/macros, move the cursor over the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
+This will open documentation for it, including demos of how they are used. Alternatively, use `C-h o' to look up a symbol (functions, variables, faces, etc).
+
+You can also try 'gd' (or 'C-c c d') to jump to their definition and see how they are implemented.
+
+* 基础设置
+
+** Theme
+There are two ways to load a theme. Both assume the theme is installed and
+available. You can either set `doom-theme' or manually load a theme with the
+`load-theme' function.
+#+begin_src emacs-lisp
+(setq doom-theme 'catppuccin)
+(setq catppuccin-flavor 'frappe)
+#+end_src
+
+** fonts
+Doom exposes five (optional) variables for controlling fonts in Doom:
+
+- `doom-font' -- the primary font to use
+- `doom-variable-pitch-font' -- a non-monospace font (where applicable)
+- `doom-big-font' -- used for `doom-big-font-mode'; use this for
+  presentations or streaming.
+- `doom-symbol-font' -- for symbols
+- `doom-serif-font' -- for the `fixed-pitch-serif' face
+
+See 'C-h v doom-font' for documentation and more examples of what they
+accept. For example:
+
+
+If you or Emacs can't find your font, use 'M-x describe-font' to look them
+up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
+refresh your font settings. If Emacs still can't find your font, it likely
+wasn't installed correctly. Font issues are rarely Doom issues!
+#+begin_src emacs-lisp
+(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
+     doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
+#+end_src
+
+** 行号
+#+begin_src emacs-lisp
+;; This determines the style of line numbers in effect. If set to `nil', line
+;; numbers are disabled. For relative line numbers, set this to `relative'.
+(setq display-line-numbers-type t)
+#+end_src
+
+* 独立插件设置
+** org 相关
+If you use `org' and don't want your org files in the default location below,
+change `org-directory'. It must be set before org loads!
+#+begin_src emacs-lisp
+(setq org-directory "~/org/")
+#+end_src
+
+*** org-transclusion
+#+begin_src emacs-lisp
+;; ========================
+;; org-transclusion 配置
+;; ========================
+
+;; (use-package! org-transclusion
+;;               :after org
+;;               :init
+;;               (map!
+;;                :map global-map "<f12>" #'org-transclusion-add
+;;                :leader
+;;                :prefix "n"
+;;                :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
+
+(use-package! org-transclusion
+  :after org
+  :init
+  (map!
+   :map (org-mode-map)
+   :localleader ;; 这里表示 <leader>m
+   :prefix ("u" . "transclUde")
+   :desc "Mode" "t" #'org-transclusion-mode
+   :desc "Deactivate" "D" #'org-transclusion-deactivate
+   :desc "Refresh" "f" #'org-transclusion-refresh
+
+   ;; Adding
+   :desc "Add" "a" #'org-transclusion-add
+   :desc "Add all" "A" #'org-transclusion-add-all
+   :desc "Add From link" "l" #'org-transclusion-make-from-link
+
+   ;; Removing
+   :desc "Remove all" "r" #'org-transclusion-remove
+   :desc "Remove all" "R" #'org-transclusion-remove-all
+
+   ;; Live sync
+   :desc "Start live sync" "s" #'org-transclusion-live-sync-start
+   :desc "Stop live sync" "S" #'org-transclusion-live-sync-exit
+
+   ;; Navigating
+   :desc "Open source" "o" #'org-transclusion-move-to-source
+
+   ;; Subtrees
+   :desc "Demote Subtree" "h" #'org-transclusion-demote-subtree
+   :desc "Promote Subtree" "l" #'org-transclusion-promote-subtree)
+  :config
+  (add-hook 'before-save-hook #'org-transclusion-refresh))
+#+end_src
+* 模块设置
+Whenever you reconfigure a package, make sure to wrap your config in an
+`after!' block, otherwise Doom's defaults may override your settings. E.g.
+
+  (after! PACKAGE
+    (setq x y))
+
+The exceptions to this rule:
+
+  - Setting file/directory variables (like `org-directory')
+  - Setting variables which explicitly tell you to set them before their
+    package is loaded (see 'C-h v VARIABLE' to look up their documentation).
+  - Setting doom variables (which start with 'doom-' or '+').
+
+#+begin_src emacs-lisp :tangle no
+(after! vetico
+(defun completion--regex-pinyin (str)
+  (orderless-regexp (pinyinlib-build-regexp-string str)))
+(add-to-list 'orderless-matching-styles 'completion--regex-pinyin))
+#+end_src
