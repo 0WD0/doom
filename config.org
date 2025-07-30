@@ -59,15 +59,79 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 (setq display-line-numbers-type t)
 #+end_src
 
-* 独立插件设置
-** org 相关
-If you use `org' and don't want your org files in the default location below,
-change `org-directory'. It must be set before org loads!
+* org 相关
+org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多配置选项来增强 org-mode 的功能。
+
 #+begin_src emacs-lisp
 (setq org-directory "~/org/")
 #+end_src
 
-*** org-transclusion
+** org-latex-preview
+
+*** 添加 LaTeX 包
+
+#+begin_src emacs-lisp :tangle no
+(after! org
+  (dolist (pkg '("amsmath" "amssymb" "mathtools" "mathrsfs"))
+    (add-to-list 'org-latex-packages-alist `("" ,pkg t))))
+#+end_src
+
+*** LaTeX 预览图像缩放
+
+ref: http://karthinks.com/software/scaling-latex-previews-in-emacs
+
+#+begin_src emacs-lisp
+(defun my/text-scale-adjust-latex-previews ()
+  "Adjust the size of latex preview fragments when changing the buffer's text scale."
+  (pcase major-mode
+    ('latex-mode
+     (dolist (ov (overlays-in (point-min) (point-max)))
+       (if (eq (overlay-get ov 'category)
+               'preview-overlay)
+           (my/text-scale--resize-fragment ov))))
+    ('org-mode
+     (dolist (ov (overlays-in (point-min) (point-max)))
+       (if (eq (overlay-get ov 'org-overlay-type)
+               'org-latex-overlay)
+           (my/text-scale--resize-fragment ov))))))
+
+(defun my/text-scale--resize-fragment (ov)
+  ;; 直接根据当前文本缩放设置图像的 :scale
+  ;; 由于 org-format-latex-options 的 :scale 固定为 1.0，这里直接设置最终缩放
+  (let* ((base-scale 1.0)  ; 基础缩放比例，可以调整
+         (step (if (boundp 'text-scale-mode-step) text-scale-mode-step 1.2))
+         (amount (if (boundp 'text-scale-mode-amount) text-scale-mode-amount 0))
+         (factor (expt step amount))
+         (new-scale (* base-scale factor)))
+    ;; 更新display的scale
+    (overlay-put
+     ov 'display
+     (cons 'image
+           (plist-put
+            (cdr (overlay-get ov 'display))
+            :scale new-scale)))))
+
+(add-hook 'text-scale-mode-hook #'my/text-scale-adjust-latex-previews)
+
+;; 在LaTeX预览渲染后立即应用正确的缩放
+(defun my/latex-preview-post-render (&rest _)
+  "在LaTeX预览渲染后应用当前的文本缩放"
+  (when (eq major-mode 'org-mode)
+    (my/text-scale-adjust-latex-previews)))
+
+;; 使用advice拦截LaTeX预览渲染函数
+(after! org
+  (advice-add 'org-latex-preview :after #'my/latex-preview-post-render))
+#+end_src
+
+*** LaTeX 预览渲染进程设置
+
+#+begin_src emacs-lisp
+(setq org-preview-latex-default-process 'dvisvgm)
+#+end_src
+
+** org-transclusion
+
 #+begin_src emacs-lisp
 ;; ========================
 ;; org-transclusion 配置
@@ -115,7 +179,7 @@ change `org-directory'. It must be set before org loads!
   :config
   (add-hook 'before-save-hook #'org-transclusion-refresh))
 #+end_src
-* 模块设置
+
 Whenever you reconfigure a package, make sure to wrap your config in an
 `after!' block, otherwise Doom's defaults may override your settings. E.g.
 
