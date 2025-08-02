@@ -18,18 +18,88 @@ This will open documentation for it, including demos of how they are used. Alter
 
 You can also try 'gd' (or 'C-c c d') to jump to their definition and see how they are implemented.
 
+* packages.el
+#+begin_src emacs-lisp :tangle packages.el
+;;; $DOOMDIR/packages.el -*- no-byte-compile: t; -*-
+
+;; To install a package with Doom you must declare them here and run 'doom sync'
+;; on the command line, then restart Emacs for the changes to take effect -- or
+
+;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
+;; (package! some-package)
+
+;; (package! org-modern-indent
+;;   :recipe (:host github :repo "jdtsmith/org-modern-indent"))
+
+;; (package! org-roam-ui)
+;; (package! valign)
+;; (package! xenops)
+
+;; To install a package directly from a remote git repo, you must specify a
+;; `:recipe'. You'll find documentation on what `:recipe' accepts here:
+;; https://github.com/radian-software/straight.el#the-recipe-format
+;; (package! another-package
+;;   :recipe (:host github :repo "username/repo"))
+
+;; If the package you are trying to install does not contain a PACKAGENAME.el
+;; file, or is located in a subdirectory of the repo, you'll need to specify
+;; `:files' in the `:recipe':
+;; (package! this-package
+;;   :recipe (:host github :repo "username/repo"
+;;            :files ("some-file.el" "src/lisp/*.el")))
+
+;; If you'd like to disable a package included with Doom, you can do so here
+;; with the `:disable' property:
+;; (package! builtin-package :disable t)
+
+;; You can override the recipe of a built in package without having to specify
+;; all the properties for `:recipe'. These will inherit the rest of its recipe
+;; from Doom or MELPA/ELPA/Emacsmirror:
+;; (package! builtin-package :recipe (:nonrecursive t))
+;; (package! builtin-package-2 :recipe (:repo "myfork/package"))
+
+;; Specify a `:branch' to install a package from a particular branch or tag.
+;; This is required for some packages whose default branch isn't 'master' (which
+;; our package manager can't deal with; see radian-software/straight.el#279)
+;; (package! builtin-package :recipe (:branch "develop"))
+
+;; Use `:pin' to specify a particular commit to install.
+;; (package! builtin-package :pin "1a2b3c4d5e")
+
+
+;; Doom's packages are pinned to a specific commit and updated from release to
+;; release. The `unpin!' macro allows you to unpin single packages...
+;; (unpin! pinned-package)
+;; ...or multiple packages
+;; (unpin! pinned-package another-pinned-package)
+;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
+;; (unpin! t)
+#+end_src
+
+* Misc
+是否解析符号链接
+#+begin_src emacs-lisp
+(setq find-file-visit-truename t)
+#+end_src
+
+
 * 基础设置
 
 ** Theme
 There are two ways to load a theme. Both assume the theme is installed and
 available. You can either set `doom-theme' or manually load a theme with the
 `load-theme' function.
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! catppuccin-theme)
+#+end_src
+
 #+begin_src emacs-lisp
 (setq doom-theme 'catppuccin)
 (setq catppuccin-flavor 'frappe)
 #+end_src
 
-** fonts
+** Fonts
 Doom exposes five (optional) variables for controlling fonts in Doom:
 
 - `doom-font' -- the primary font to use
@@ -49,10 +119,10 @@ refresh your font settings. If Emacs still can't find your font, it likely
 wasn't installed correctly. Font issues are rarely Doom issues!
 #+begin_src emacs-lisp
 (setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
-     doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
+      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
 #+end_src
 
-** 行号
+** Line numbers
 #+begin_src emacs-lisp
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -66,6 +136,18 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (setq org-directory "~/org/")
 #+end_src
 
+** Deft
+单纯是为了全文搜索，我还是不太理解为什么全文搜索要专门用一个插件，一般的 grep 有什么问题？
+感觉 Emacs 里并没有 Telescope 的直接替代品啊
+
+#+begin_src emacs-lisp
+(after! org
+  (setq deft-recursive t
+        deft-use-filter-string-for-filename t
+        deft-default-extension "org"
+        deft-directory org-directory))
+#+end_src
+
 ** org-latex-preview
 
 *** 添加 LaTeX 包
@@ -76,9 +158,15 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
     (add-to-list 'org-latex-packages-alist `("" ,pkg t))))
 #+end_src
 
+*** LaTeX 预览渲染进程设置
+
+#+begin_src emacs-lisp
+(setq org-preview-latex-default-process 'dvisvgm)
+#+end_src
+
 *** LaTeX 预览图像缩放
 
-ref: http://karthinks.com/software/scaling-latex-previews-in-emacs
+[[https://karthinks.com/software/scaling-latex-previews-in-emacs/][Scaling Latex previews in Emacs | Karthinks]] 这篇文章和评论区帮了大忙了
 
 #+begin_src emacs-lisp
 (defun my/text-scale-adjust-latex-previews ()
@@ -124,19 +212,78 @@ ref: http://karthinks.com/software/scaling-latex-previews-in-emacs
   (advice-add 'org-latex-preview :after #'my/latex-preview-post-render))
 #+end_src
 
-*** LaTeX 预览渲染进程设置
+**** TODO 在标题处按 RET 时也会 toggle latex 预览，此时预览跳出的大小没有被正确设置！
 
-#+begin_src emacs-lisp
-(setq org-preview-latex-default-process 'dvisvgm)
+*** Highlight
+不知道怎么单独设置行内 LaTeX 块的背景颜色，貌似和代码块是绑在一起的，没有成功
+#+begin_src emacs-lisp :tangle no
+(setq org-highlight-latex-and-related '(native script))
+
+(after! org
+  ;; 设置LaTeX公式背景色与正常文本背景一致
+  (custom-set-faces!
+   `(org-latex-and-related :background ,(doom-color 'bg) :inherit nil))
+  
+  ;; 强制设置org-latex-and-related face的背景
+  (defun my/fix-latex-background ()
+    "Fix LaTeX fragments background in org-mode"
+    (when (eq major-mode 'org-mode)
+      (face-remap-add-relative 'org-latex-and-related 
+                               :background (doom-color 'bg))))
+  
+  (add-hook 'org-mode-hook #'my/fix-latex-background)
+  (add-hook 'doom-load-theme-hook #'my/fix-latex-background))
+
+;; (after! org-src
+;;   (add-to-list 'org-src-block-faces
+;;                `("latex" (:background ,(doom-color 'bg)
+;;                           :extend t))))
+#+end_src
+*** evil-mode
+不知道有什么用
+#+begin_src emacs-lisp :tangle no
+(add-hook! 'org-src-mode-hook
+  (when (string= major-mode "latex-mode")
+    (evil-tex-mode 1)))
+#+end_src
+
+** org-appear
+貌似没有区别
+#+begin_src emacs-lisp :tangle no
+(after! org-appear
+  (setq org-hide-emphasis-markers t
+        org-pretty-entities nil
+        ;; org-appear-autoentities t
+        org-appear-autosubmarkers t
+        org-appear-inside-latex t
+        org-appear-autolinks 'just-brackets))
+#+end_src
+
+** org-supertag
+无法正常工作
+#+begin_src emacs-lisp :tangle no
+(package! org-supertag
+  :recipe (:host github :repo "yibie/org-supertag"))
+(package! deferred)
+(package! epc)
+#+end_src
+
+#+begin_src emacs-lisp :tangle no
+(use-package! org-supertag
+  :after org
+  :config
+  (org-supertag-setup))
+
+(setq org-supertag-sync-directories '("~/org")) ;; 注意这里不能直接写 org-directory，格式是不一样的，直接写会变成 126 error code
 #+end_src
 
 ** org-transclusion
 
-#+begin_src emacs-lisp
-;; ========================
-;; org-transclusion 配置
-;; ========================
+#+begin_src emacs-lisp :tangle no
+(package! org-transclusion)
+#+end_src
 
+#+begin_src emacs-lisp :tangle no
 ;; (use-package! org-transclusion
 ;;               :after org
 ;;               :init
@@ -199,3 +346,20 @@ The exceptions to this rule:
   (orderless-regexp (pinyinlib-build-regexp-string str)))
 (add-to-list 'orderless-matching-styles 'completion--regex-pinyin))
 #+end_src
+
+* Lang
+
+** Lsp config
+还没有让它正常工作
+#+begin_src emacs-lisp :tangle no
+;; LSP UI Sideline - 总是显示诊断信息在行尾
+(setq lsp-ui-sideline-show-diagnostics t      ; 显示诊断信息
+      lsp-ui-sideline-show-hover nil          ; 不显示hover信息
+      lsp-ui-sideline-show-code-actions t     ; 显示代码操作
+      lsp-ui-sideline-update-mode 'line       ; 只在当前行更新
+      lsp-ui-sideline-delay 0.1               ; 减少延迟
+      lsp-ui-sideline-diagnostic-max-lines 1  ; 每个诊断最多显示行数
+      lsp-ui-sideline-diagnostic-max-line-length 100) ; 最大行长度
+#+end_src
+
+
