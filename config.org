@@ -13,6 +13,7 @@ Here are some additional functions/macros that will help you configure Doom.
   `require' or `use-package'.
 - `map!' for binding new keys
 
+
 To get information about any of these functions/macros, move the cursor over the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
 This will open documentation for it, including demos of how they are used. Alternatively, use `C-h o' to look up a symbol (functions, variables, faces, etc).
 
@@ -84,7 +85,6 @@ You can also try 'gd' (or 'C-c c d') to jump to their definition and see how the
 
 
 * 基础设置
-
 ** Theme
 There are two ways to load a theme. Both assume the theme is installed and
 available. You can either set `doom-theme' or manually load a theme with the
@@ -347,8 +347,20 @@ The exceptions to this rule:
 (add-to-list 'orderless-matching-styles 'completion--regex-pinyin))
 #+end_src
 
-* Lang
+* evil 相关
+** insert mode 中 C-n/p 设置为上下行
+因为它本来是补全相关的，所以只要改 corfu 的设置就行了
 
+现在我如果要手动唤起补全，就用 C-SPC
+然后在唤起 popup 之后用 C-n/p 切换上下待选项依然是可以用的！
+
+#+begin_src emacs-lisp
+(after! corfu
+  (map! :map corfu-mode-map
+        :i "C-n" #'next-line
+        :i "C-p" #'previous-line))
+#+end_src
+* Lang
 ** Lsp config
 还没有让它正常工作
 #+begin_src emacs-lisp :tangle no
@@ -361,5 +373,3 @@ The exceptions to this rule:
       lsp-ui-sideline-diagnostic-max-lines 1  ; 每个诊断最多显示行数
       lsp-ui-sideline-diagnostic-max-line-length 100) ; 最大行长度
 #+end_src
-
-
