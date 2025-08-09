@@ -21,48 +21,39 @@ You can also try 'gd' (or 'C-c c d') to jump to their definition and see how the
 #+begin_src emacs-lisp :tangle packages.el
 ;;; $DOOMDIR/packages.el -*- no-byte-compile: t; -*-
 #+end_src
-To install a package with Doom you must declare them here and run 'doom sync' on the command line, then restart Emacs for the changes to take effect -- or
+使用 Doom 安装软件包时，必须在此处声明并运行命令行中的 'doom sync'，然后重启 Emacs 才能让更改生效 -- 或者
 
-To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
-(package! some-package)
+从 MELPA、ELPA 或 emacsmirror 安装 SOME-PACKAGE：
+~(package! some-package)~
 
-To install a package directly from a remote git repo, you must specify a
-`:recipe'. You'll find documentation on what `:recipe' accepts here:
-https://github.com/radian-software/straight.el#the-recipe-format
+若要从远程 Git 仓库直接安装软件包，您需要指定一个 ~:recipe~ （配方）
+关于 ~:recipe~ 接受的格式说明请参见： https://github.com/radian-software/straight.el#the-recipe-format
 (package! another-package
   :recipe (:host github :repo "username/repo"))
 
-If the package you are trying to install does not contain a PACKAGENAME.el
-file, or is located in a subdirectory of the repo, you'll need to specify
-`:files' in the `:recipe':
+当您要安装的包中没有 PACKAGENAME.el 文件，或该文件位于仓库子目录中时，您需要在 `:recipe' 中指定 `:files'：
 (package! this-package
   :recipe (:host github :repo "username/repo"
            :files ("some-file.el" "src/lisp/*.el")))
 
-If you'd like to disable a package included with Doom, you can do so here
-with the `:disable' property:
+如果想要禁用 Doom 自带的包，可以在此处使用 ~:disable~ 属性：
 (package! builtin-package :disable t)
 
-You can override the recipe of a built in package without having to specify
-all the properties for `:recipe'. These will inherit the rest of its recipe
-from Doom or MELPA/ELPA/Emacsmirror:
+您可以无需指定 ~:recipe~ 的所有属性，就覆盖内置包的配方。这些设置将继承其他部分的配方信息（来自 Doom 或 MELPA/ELPA/Emacsmirror）：
 (package! builtin-package :recipe (:nonrecursive t))
 (package! builtin-package-2 :recipe (:repo "myfork/package"))
 
-Specify a `:branch' to install a package from a particular branch or tag.
-This is required for some packages whose default branch isn't 'master' (which
-our package manager can't deal with; see radian-software/straight.el#279)
+使用 ~:branch~ 指定从特定分支或标签安装包（某些默认分支不是 'master' 的包需要此项配置，因为当前包管理器无法处理；参见 radian-software/straight.el#279）：
 (package! builtin-package :recipe (:branch "develop"))
 
-Use `:pin' to specify a particular commit to install.
+使用 ~:pin~ 指定特定提交哈希来安装包：
 (package! builtin-package :pin "1a2b3c4d5e")
 
-Doom's packages are pinned to a specific commit and updated from release to
-release. The `unpin!' macro allows you to unpin single packages...
+Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更新。使用 `unpin!' 宏可以解除单个包的绑定...
 (unpin! pinned-package)
-...or multiple packages
+...或多个包
 (unpin! pinned-package another-pinned-package)
-...Or *all* packages (NOT RECOMMENDED; will likely break things)
+...或者 *全部* 包（不推荐，很可能导致错误）
 (unpin! t)
 
 * Misc
@@ -255,7 +246,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 ** TODO 自动为 :chat: 标签添加 folded VISIBILITY
 
-未正常工作！
+还未能正常工作
 
 #+begin_src emacs-lisp :tangle no
 (after! org
@@ -330,6 +321,8 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 ** org-latex-preview
 
 *** 添加 LaTeX 包
+
+貌似没有区别
 
 #+begin_src emacs-lisp :tangle no
 (after! org
