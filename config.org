@@ -3,20 +3,18 @@
 #+end_src
 这个词法作用域配置是必要的
 
-Here are some additional functions/macros that will help you configure Doom.
-
-- `load!' for loading external *.el files relative to this one
-- `use-package!' for configuring packages
-- `after!' for running code after a package has loaded
-- `add-load-path!' for adding directories to the `load-path', relative to
-  this file. Emacs searches the `load-path' when you load packages with
-  `require' or `use-package'.
-- `map!' for binding new keys
+这是一些在配置 doom 时可能有帮助的额外的 函数/宏
+ - `load!' for loading external *.el files relative to this one
+ - `use-package!' for configuring packages
+ - `after!' for running code after a package has loaded
+ - `add-load-path!' for adding directories to the `load-path', relative to
+   this file. Emacs searches the `load-path' when you load packages with
+   `require' or `use-package'.
+ - `map!' for binding new keys
 
 
 To get information about any of these functions/macros, move the cursor over the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
 This will open documentation for it, including demos of how they are used. Alternatively, use `C-h o' to look up a symbol (functions, variables, faces, etc).
-
 You can also try 'gd' (or 'C-c c d') to jump to their definition and see how they are implemented.
 
 * packages.el
@@ -72,6 +70,7 @@ release. The `unpin!' macro allows you to unpin single packages...
 #+begin_src emacs-lisp
 (setq find-file-visit-truename t)
 #+end_src
+
 ** consult.el
 来自官方文档
 #+begin_src emacs-lisp
@@ -101,6 +100,7 @@ release. The `unpin!' macro allows you to unpin single packages...
 #+end_src
 
 * 基础设置
+
 ** Theme
 There are two ways to load a theme. Both assume the theme is installed and
 available. You can either set `doom-theme' or manually load a theme with the
@@ -154,9 +154,8 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 #+end_src
 
 ** Line numbers
+
 #+begin_src emacs-lisp
-;; This determines the style of line numbers in effect. If set to `nil', line
-;; numbers are disabled. For relative line numbers, set this to `relative'.
 (setq display-line-numbers-type t)
 #+end_src
 
@@ -173,7 +172,11 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       ;; org-confirm-babel-evaluate nil
       ;; org-edit-src-content-indentation 0
       )
+#+end_src
 
+** UI
+
+#+begin_src emacs-lisp
 ;; Org-mode 标题简约配色 - 基于 catppuccin frappe
 (custom-set-faces!
    '(org-level-1 :foreground "#c6d0f5" :weight bold :height 1.3)      ; 纯文本色，最亮
@@ -184,7 +187,71 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
    '(org-level-6 :foreground "#717b98" :weight normal)                ; 再暗
    '(org-level-7 :foreground "#606a86" :weight normal)                ; 很暗
    '(org-level-8 :foreground "#4f5973" :weight normal))               ; 最暗
+#+end_src
 
+*** org-modern-indent
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-modern-indent
+  :recipe (:host github :repo "jdtsmith/org-modern-indent"))
+#+end_src
+
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook #'org-modern-indent-mode 90)
+#+end_src
+
+*** 对 org-mode 禁用 indent-bars
+
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook
+          (lambda ()
+            (when (bound-and-true-p indent-guides-mode)
+              (indent-guides-mode -1))
+            (when (bound-and-true-p highlight-indent-guides-mode)
+              (highlight-indent-guides-mode -1))))
+#+end_src
+
+** TODO 自动为 :chat: 标签添加 folded VISIBILITY
+
+未正常工作！
+
+#+begin_src emacs-lisp :tangle no
+(after! org
+  (defun my/org-auto-fold-chat-headings ()
+    "Automatically add VISIBILITY: folded property to headings with :chat: tag."
+    (save-excursion
+      (save-restriction
+        (widen)
+        (goto-char (point-min))
+        (while (re-search-forward "^\\*+ " nil t)
+          (when (org-at-heading-p)
+            (let ((tags (org-get-tags nil t)))
+              (when (member "chat" tags)
+                (unless (string= (org-entry-get nil "VISIBILITY") "folded")
+                  (org-entry-put nil "VISIBILITY" "folded")))))))))
+
+  (defun my/org-add-visibility-on-tag-change ()
+    "Add folded VISIBILITY when :chat: tag is added."
+    (when (org-at-heading-p)
+      (let ((tags (org-get-tags nil t)))
+        (when (member "chat" tags)
+          (unless (string= (org-entry-get nil "VISIBILITY") "folded")
+            (org-entry-put nil "VISIBILITY" "folded")
+            (org-cycle-hide-property-drawers 'overview))))))
+
+  ;; 当标签改变时检查
+  (add-hook 'org-after-tags-change-hook #'my/org-add-visibility-on-tag-change)
+  
+  ;; 打开文件时扫描整个文件
+  (add-hook 'org-mode-hook 
+            (lambda ()
+              (run-with-idle-timer 0.1 nil #'my/org-auto-fold-chat-headings)))
+  
+  ;; 保存文件前自动添加
+  (add-hook 'before-save-hook 
+            (lambda ()
+              (when (eq major-mode 'org-mode)
+                (my/org-auto-fold-chat-headings)))))
 #+end_src
 
 ** org-babel
@@ -216,17 +283,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   (with-eval-after-load 'ob-C
     (advice-add 'org-babel-C-execute :filter-args
                 #'org-babel-C-execute/filter-args)))
-#+end_src
-
-** Deft :ARCHIVE:
-我觉得完全用不到，这不适合和 org-roam 配合使用
-
-#+begin_src emacs-lisp :tangle no
-(after! org
-  (setq deft-recursive t
-        deft-use-filter-string-for-filename t
-        deft-default-extension "org"
-        deft-directory org-directory))
 #+end_src
 
 ** org-latex-preview
@@ -297,6 +353,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 **** TODO 现在的设置没有随字体大小变化而变化，在字体调大之后预览会出现占不满行高的情况
 
 *** Highlight
+
 不知道怎么单独设置行内 LaTeX 块的背景颜色，貌似和代码块是绑在一起的，没有成功
 #+begin_src emacs-lisp :tangle no
 (setq org-highlight-latex-and-related '(native script))
@@ -321,12 +378,42 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 ;;                `("latex" (:background ,(doom-color 'bg)
 ;;                           :extend t))))
 #+end_src
+
 *** evil-mode
+
 不知道有什么用
 #+begin_src emacs-lisp :tangle no
 (add-hook! 'org-src-mode-hook
   (when (string= major-mode "latex-mode")
     (evil-tex-mode 1)))
+#+end_src
+
+** ox-hugo
+#+begin_src emacs-lisp
+(after! org
+  (setq org-id-extra-files (directory-files-recursively org-roam-directory "\.org$")))
+#+end_src
+
+** 把一个 region 转换为 org-mode
+
+参考 [[http://yummymelon.com/devnull/converting-a-markdown-region-to-org-revisited.html][nfdn: Converting a Markdown Region to Org Revisited]]
+
+#+begin_src emacs-lisp
+(defun my-md-to-org-region (start end)
+  "Convert region from markdown to org"
+  (interactive "r")
+  (shell-command-on-region start end "pandoc -f markdown -t org" t t))
+#+end_src
+
+** Deft :ARCHIVE:
+我觉得完全用不到，这不适合和 org-roam 配合使用
+
+#+begin_src emacs-lisp :tangle no
+(after! org
+  (setq deft-recursive t
+        deft-use-filter-string-for-filename t
+        deft-default-extension "org"
+        deft-directory org-directory))
 #+end_src
 
 ** org-appear :ARCHIVE:
@@ -429,21 +516,15 @@ The exceptions to this rule:
 (add-to-list 'orderless-matching-styles 'completion--regex-pinyin))
 #+end_src
 
-** ox-hugo
-#+begin_src emacs-lisp
-(after! org
-  (setq org-id-extra-files (directory-files-recursively org-roam-directory "\.org$")))
-#+end_src
-
-** 表格增强
+** valign 表格对齐 :ARCHIVE:
 
 不使用 org-modern 的表格美化，改用 valign
 
-#+begin_src emacs-lisp :tangle packages.el
+#+begin_src emacs-lisp :tangle no
 (package! valign)
 #+end_src
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 (add-hook 'org-mode-hook #'valign-mode)
 (after! org
   (setq valign-fancy-bar t
@@ -451,7 +532,9 @@ The exceptions to this rule:
 #+end_src
 
 * evil 相关
+
 ** insert mode 中 C-n/p 设置为上下行
+
 因为它本来是补全相关的，所以只要改 corfu 的设置就行了
 
 现在我如果要手动唤起补全，就用 C-SPC
@@ -465,7 +548,9 @@ The exceptions to this rule:
 #+end_src
 
 * Program
+
 ** lsp-mode config
+
 还没有让它正常工作
 
 #+begin_src emacs-lisp
@@ -497,6 +582,9 @@ The exceptions to this rule:
 #+end_src
 
 ** C/C++
+
+*** 运行与调试
+
 我希望使用 gdb 调试，怎么写 dape 配置？
 
 #+begin_src emacs-lisp
@@ -539,8 +627,10 @@ The exceptions to this rule:
 #+end_src
 
 ** Python
+
 *** lsp-pyright config
 切换到 basedpyright
+
 #+begin_src emacs-lisp
 (setq lsp-pyright-langserver-command "basedpyright")
 #+end_src
@@ -549,6 +639,7 @@ The exceptions to this rule:
 自带的 debugpy 配置不能正常工作。。。
 
 ** claude-code-ide.el
+
 #+begin_src emacs-lisp :tangle packages.el
 (package! claude-code-ide
   :recipe (:host github :repo "manzaltu/claude-code-ide.el"))
@@ -589,7 +680,8 @@ The exceptions to this rule:
               )
   :config
   (setq copilot-indent-offset-warning-disable t)
-  (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 2))
+  ;; (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 2))
+  
   ;; Enable only in insert state for Evil users
   (when (modulep! :editor evil)
     (setq copilot-enable-predicates '(evil-insert-state-p)))
@@ -610,6 +702,7 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 [[https://emacs-china.org/t/copilot/20348/20?u=0wd0][Copilot 非官方插件 - #20，来自 zerol - Emacs-general - Emacs China]]
 
 ** corfu
+
 #+begin_src emacs-lisp
 ;;; Corfu configuration
 (after! corfu
