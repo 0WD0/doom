@@ -87,6 +87,18 @@ release. The `unpin!' macro allows you to unpin single packages...
    ))
 #+end_src
 
+** nov.el
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! nov)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :config
+  (setq nov-save-place-file (concat doom-cache-dir "nov-places")))
+#+end_src
 
 * 基础设置
 ** Theme
