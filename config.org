@@ -296,43 +296,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
                 (my/org-auto-fold-chat-headings)))))
 #+end_src
 
-** org-src tree-sitter 高亮
-
-#+begin_src emacs-lisp :tangle no
-;; 在 org-mode buffer 中启用 tree-sitter 高亮代码块
-(after! org
-  (setq org-src-fontify-natively t
-        org-src-tab-acts-natively t)
-  
-  ;; 确保相关语言模式启用 tree-sitter
-  (defun my/enable-tree-sitter-for-mode ()
-    "Enable tree-sitter for supported modes used in org src blocks"
-    (when (and (featurep 'tree-sitter)
-               (fboundp 'tree-sitter-mode)
-               (fboundp 'tree-sitter-hl-mode))
-      (tree-sitter-mode 1)
-      (tree-sitter-hl-mode 1)))
-  
-  ;; 为常用的编程语言模式添加 tree-sitter 支持
-  (dolist (mode '(c-mode-hook c++-mode-hook python-mode-hook
-                  rust-mode-hook js-mode-hook typescript-mode-hook
-                  emacs-lisp-mode-hook go-mode-hook java-mode-hook))
-    (add-hook mode #'my/enable-tree-sitter-for-mode))
-  
-  ;; 强制刷新 org buffer 的 fontification
-  (defun my/org-restart-font-lock ()
-    "Restart font-lock in org mode to apply tree-sitter highlighting"
-    (when (eq major-mode 'org-mode)
-      (org-restart-font-lock)))
-  
-  ;; 在 org-mode 启动时应用
-  (add-hook 'org-mode-hook #'my/org-restart-font-lock)
-  
-  ;; 确保语言映射正确
-  (add-to-list 'org-src-lang-modes '("cpp" . c++))
-  (add-to-list 'org-src-lang-modes '("c++" . c++)))
-#+end_src
-
 ** org-babel
 
 *** ob-C-stdin
@@ -804,4 +767,10 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
         corfu-auto-prefix 2             ; Minimum prefix length
         corfu-cycle t                   ; Enable cycling
         +corfu-want-tab-prefer-expand-snippets t))
+#+end_src
+
+** treesit.el
+
+#+begin_src emacs-lisp
+(setq treesit-font-lock-level 4)
 #+end_src
