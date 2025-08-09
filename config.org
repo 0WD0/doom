@@ -66,12 +66,20 @@ release. The `unpin!' macro allows you to unpin single packages...
 (unpin! t)
 
 * Misc
+
 是否解析符号链接
 #+begin_src emacs-lisp
 (setq find-file-visit-truename t)
 #+end_src
 
+缩进风格
+#+begin_src emacs-lisp
+(setq indent-tabs-mode nil)
+(setq tab-width 4)
+#+end_src
+
 ** consult.el
+
 来自官方文档
 #+begin_src emacs-lisp
 (after! consult
@@ -167,10 +175,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-roam-directory "~/org/roam"
       org-roam-completion-everywhere t
       org-agenda-files '("~/org")
-      ;; org-src-fontify-natively t
-      ;; org-src-tab-acts-natively t
+      org-src-fontify-natively t
+      org-src-tab-acts-natively t
       ;; org-confirm-babel-evaluate nil
-      ;; org-edit-src-content-indentation 0
+      org-edit-src-content-indentation 0
       )
 #+end_src
 
@@ -200,15 +208,28 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (add-hook 'org-mode-hook #'org-modern-indent-mode 90)
 #+end_src
 
+*** org-mode 代码块颜色配置
+
+#+begin_src emacs-lisp
+;; 自定义 org-mode 代码块颜色 - 与 catppuccin frappe 主题协调
+(after! org
+  (custom-set-faces!
+   ;; 代码块背景 - 使用稍暗的背景色
+   ;; '(org-block :background "#292c3c" :extend t)
+   ;; 代码块开始/结束标记
+   '(org-block-begin-line :background "#232634" :foreground "#737994" :extend t)
+   '(org-block-end-line :background "#232634" :foreground "#737994" :extend t)
+   ;; 行内代码颜色
+   '(org-block :foreground "#c6d0f5" :extend t)))
+#+end_src
+
 *** 对 org-mode 禁用 indent-bars
 
 #+begin_src emacs-lisp
 (add-hook 'org-mode-hook
           (lambda ()
-            (when (bound-and-true-p indent-guides-mode)
-              (indent-guides-mode -1))
-            (when (bound-and-true-p highlight-indent-guides-mode)
-              (highlight-indent-guides-mode -1))))
+            (when (bound-and-true-p indent-bars-mode)
+              (indent-bars-mode -1))))
 #+end_src
 
 ** TODO 自动为 :chat: 标签添加 folded VISIBILITY
@@ -252,6 +273,43 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
             (lambda ()
               (when (eq major-mode 'org-mode)
                 (my/org-auto-fold-chat-headings)))))
+#+end_src
+
+** org-src tree-sitter 高亮
+
+#+begin_src emacs-lisp :tangle no
+;; 在 org-mode buffer 中启用 tree-sitter 高亮代码块
+(after! org
+  (setq org-src-fontify-natively t
+        org-src-tab-acts-natively t)
+  
+  ;; 确保相关语言模式启用 tree-sitter
+  (defun my/enable-tree-sitter-for-mode ()
+    "Enable tree-sitter for supported modes used in org src blocks"
+    (when (and (featurep 'tree-sitter)
+               (fboundp 'tree-sitter-mode)
+               (fboundp 'tree-sitter-hl-mode))
+      (tree-sitter-mode 1)
+      (tree-sitter-hl-mode 1)))
+  
+  ;; 为常用的编程语言模式添加 tree-sitter 支持
+  (dolist (mode '(c-mode-hook c++-mode-hook python-mode-hook
+                  rust-mode-hook js-mode-hook typescript-mode-hook
+                  emacs-lisp-mode-hook go-mode-hook java-mode-hook))
+    (add-hook mode #'my/enable-tree-sitter-for-mode))
+  
+  ;; 强制刷新 org buffer 的 fontification
+  (defun my/org-restart-font-lock ()
+    "Restart font-lock in org mode to apply tree-sitter highlighting"
+    (when (eq major-mode 'org-mode)
+      (org-restart-font-lock)))
+  
+  ;; 在 org-mode 启动时应用
+  (add-hook 'org-mode-hook #'my/org-restart-font-lock)
+  
+  ;; 确保语言映射正确
+  (add-to-list 'org-src-lang-modes '("cpp" . c++))
+  (add-to-list 'org-src-lang-modes '("c++" . c++)))
 #+end_src
 
 ** org-babel
@@ -548,42 +606,16 @@ The exceptions to this rule:
 #+end_src
 
 * Program
-
-** lsp-mode config
-
-还没有让它正常工作
+** Languages
+*** C/C++
+**** 缩进
 
 #+begin_src emacs-lisp
-(after! lsp-mode
-  (setq lsp-idle-delay 0.5
-        lsp-log-io nil
-        lsp-completion-provider :capf
-        lsp-enable-file-watchers nil
-        lsp-enable-folding nil
-        lsp-enable-text-document-color nil
-        lsp-enable-on-type-formatting nil
-        lsp-enable-snippet nil
-        lsp-enable-symbol-highlighting nil
-        lsp-enable-links nil
-        lsp-lens-enable t  ;; 不起作用？
-        lsp-headerline-breadcrumb-enable t))
-
-;; LSP UI settings for better performance
-(after! lsp-ui
-  (setq lsp-ui-doc-enable nil
-        lsp-ui-sideline-show-diagnostics t      ; 显示诊断信息
-        lsp-ui-sideline-show-hover nil          ; 不显示hover信息
-        lsp-ui-sideline-show-code-actions nil   ; 显示代码操作
-        lsp-ui-sideline-update-mode 'line       ; 只在当前行更新
-        lsp-ui-sideline-delay 0.1               ; 减少延迟
-        lsp-ui-sideline-diagnostic-max-lines 3  ; 每个诊断最多显示行数
-        lsp-ui-sideline-diagnostic-max-line-length 100 ; 最大行长度
-        lsp-ui-peek-enable t))
+;; tree-sitter 模式的缩进设置
+(setq c-ts-mode-indent-offset 4)
 #+end_src
 
-** C/C++
-
-*** 运行与调试
+**** 运行与调试
 
 我希望使用 gdb 调试，怎么写 dape 配置？
 
@@ -626,17 +658,57 @@ The exceptions to this rule:
             ))
 #+end_src
 
-** Python
+*** Python
 
-*** lsp-pyright config
+**** lsp-pyright config
 切换到 basedpyright
 
 #+begin_src emacs-lisp
 (setq lsp-pyright-langserver-command "basedpyright")
 #+end_src
 
-*** dape config
+**** dape config
 自带的 debugpy 配置不能正常工作。。。
+
+**** 缩进示例
+#+begin_src emacs-lisp :tangle no
+(add-hook 'python-mode-hook
+            (lambda ()
+              (setq-local tab-width 4)
+              (setq-local indent-tabs-mode nil)))
+#+end_src
+
+** lsp-mode config
+
+还没有让它正常工作
+
+#+begin_src emacs-lisp
+(after! lsp-mode
+  (setq lsp-idle-delay 0.5
+        lsp-log-io nil
+        lsp-completion-provider :capf
+        lsp-enable-file-watchers nil
+        lsp-enable-folding nil
+        lsp-enable-text-document-color nil
+        lsp-enable-on-type-formatting nil
+        lsp-enable-snippet nil
+        lsp-enable-symbol-highlighting nil
+        lsp-enable-links nil
+        lsp-lens-enable t  ;; 不起作用？
+        lsp-headerline-breadcrumb-enable t))
+
+;; LSP UI settings for better performance
+(after! lsp-ui
+  (setq lsp-ui-doc-enable nil
+        lsp-ui-sideline-show-diagnostics t      ; 显示诊断信息
+        lsp-ui-sideline-show-hover nil          ; 不显示hover信息
+        lsp-ui-sideline-show-code-actions nil   ; 显示代码操作
+        lsp-ui-sideline-update-mode 'line       ; 只在当前行更新
+        lsp-ui-sideline-delay 0.1               ; 减少延迟
+        lsp-ui-sideline-diagnostic-max-lines 3  ; 每个诊断最多显示行数
+        lsp-ui-sideline-diagnostic-max-line-length 100 ; 最大行长度
+        lsp-ui-peek-enable t))
+#+end_src
 
 ** claude-code-ide.el
 

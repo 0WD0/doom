@@ -97,7 +97,7 @@
        debugger          ; FIXME stepping through code, to help you add bugs
        ;;direnv
        (docker +lsp)
-       editorconfig        ; let someone else argue about tabs vs spaces
+       ;; editorconfig   ; let someone else argue about tabs vs spaces 有内置实现的
        ein               ; tame Jupyter notebooks with emacs
        (eval +overlay)     ; run code, run (also, repls)
        lookup              ; navigate your code and its documentation
