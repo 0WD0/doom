@@ -216,11 +216,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
                 #'org-babel-C-execute/filter-args)))
 #+end_src
 
-** Deft
-单纯是为了全文搜索，我还是不太理解为什么全文搜索要专门用一个插件，一般的 grep 有什么问题？
-感觉 Emacs 里并没有 Telescope 的直接替代品啊
+** Deft :ARCHIVE:
+我觉得完全用不到，这不适合和 org-roam 配合使用
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 (after! org
   (setq deft-recursive t
         deft-use-filter-string-for-filename t
@@ -328,7 +327,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
     (evil-tex-mode 1)))
 #+end_src
 
-** org-appear
+** org-appear :ARCHIVE:
 貌似没有区别
 #+begin_src emacs-lisp :tangle no
 (after! org-appear
@@ -340,7 +339,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
         org-appear-autolinks 'just-brackets))
 #+end_src
 
-** org-supertag
+** org-supertag :ARCHIVE:
 无法正常工作
 #+begin_src emacs-lisp :tangle no
 (package! org-supertag
@@ -358,7 +357,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (setq org-supertag-sync-directories '("~/org")) ;; 注意这里不能直接写 org-directory，格式是不一样的，直接写会变成 126 error code
 #+end_src
 
-** org-transclusion
+** org-transclusion :ARCHIVE:
 
 #+begin_src emacs-lisp :tangle no
 (package! org-transclusion)
