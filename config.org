@@ -108,8 +108,23 @@ up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
 refresh your font settings. If Emacs still can't find your font, it likely
 wasn't installed correctly. Font issues are rarely Doom issues!
 #+begin_src emacs-lisp
-(setq doom-font (font-spec :family "Fira Code" :size 24 :weight 'semi-light)
-      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 24))
+;; 日常阅读使用 Fira Code，代码使用 Fira Code
+(setq doom-font (font-spec :family "Fira Code" :size 24 :weight 'normal)
+      doom-variable-pitch-font (font-spec :family "Fira Code" :size 24)
+      doom-big-font (font-spec :family "Fira Code" :size 36)
+      doom-serif-font (font-spec :family "Fira Sans" :size 24))
+
+;; 中文字体配置 - 使用最佳实践
+(defun my-cjk-font ()
+  "Set CJK font for mixed Chinese-English display"
+  (dolist (charset '(kana han cjk-misc symbol bopomofo))
+    (set-fontset-font t charset (font-spec :family "LXGW WenKai"))))
+
+(add-hook 'after-setting-font-hook #'my-cjk-font)
+
+;; 设定所有英文斜体使用 Hack Nerd Font
+(custom-set-faces!
+ '(italic :family "Hack Nerd Font" :slant italic))
 #+end_src
 
 ** Line numbers
