@@ -171,6 +171,18 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       ;; org-roam-mode-sections (list #'org-roam-backlinks-section
       ;;                              #'org-roam-reflinks-section)
       )
+
+;; Org-mode 标题简约配色 - 基于 catppuccin frappe
+(custom-set-faces!
+   '(org-level-1 :foreground "#c6d0f5" :weight bold :height 1.3)      ; 纯文本色，最亮
+   '(org-level-2 :foreground "#b5bfe2" :weight semi-bold :height 1.2) ; 稍微暗一点
+   '(org-level-3 :foreground "#a4aed0" :weight semi-bold :height 1.1) ; 更暗
+   '(org-level-4 :foreground "#939dbd" :weight normal)                ; 继续变暗
+   '(org-level-5 :foreground "#828cab" :weight normal)                ; 更暗
+   '(org-level-6 :foreground "#717b98" :weight normal)                ; 再暗
+   '(org-level-7 :foreground "#606a86" :weight normal)                ; 很暗
+   '(org-level-8 :foreground "#4f5973" :weight normal))               ; 最暗
+
 #+end_src
 
 ** org-babel
