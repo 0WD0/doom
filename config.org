@@ -432,6 +432,22 @@ The exceptions to this rule:
 (after! org
   (setq org-id-extra-files (directory-files-recursively org-roam-directory "\.org$")))
 #+end_src
+
+** 表格增强
+
+不使用 org-modern 的表格美化，改用 valign
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! valign)
+#+end_src
+
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook #'valign-mode)
+(after! org
+  (setq valign-fancy-bar t
+        org-modern-table nil))
+#+end_src
+
 * evil 相关
 ** insert mode 中 C-n/p 设置为上下行
 因为它本来是补全相关的，所以只要改 corfu 的设置就行了
