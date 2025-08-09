@@ -232,6 +232,27 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
               (indent-bars-mode -1))))
 #+end_src
 
+
+** org-roam 增强
+
+*** 快速打开 =:ROAM_REFS:=
+
+#+begin_src emacs-lisp
+(defun my/open-roam-refs ()
+  "Open one of the ROAM_REFS links for current entry."
+  (interactive)
+  (let ((refs (org-entry-get nil "ROAM_REFS")))
+    (when refs
+      (let* ((links (split-string refs " "))
+             (link (completing-read "Open link: " links)))
+        (browse-url link)))))
+
+(map! :map org-mode-map
+      :localleader
+      :prefix ("m" . "org-roam")
+      "b" #'my/open-roam-refs)
+#+end_src
+
 ** TODO 自动为 :chat: 标签添加 folded VISIBILITY
 
 未正常工作！
