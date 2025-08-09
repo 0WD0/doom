@@ -168,8 +168,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-roam-directory "~/org/roam"
       org-roam-completion-everywhere t
       org-agenda-files '("~/org")
-      ;; org-roam-mode-sections (list #'org-roam-backlinks-section
-      ;;                              #'org-roam-reflinks-section)
+      ;; org-src-fontify-natively t
+      ;; org-src-tab-acts-natively t
+      ;; org-confirm-babel-evaluate nil
+      ;; org-edit-src-content-indentation 0
       )
 
 ;; Org-mode 标题简约配色 - 基于 catppuccin frappe
@@ -461,16 +463,159 @@ The exceptions to this rule:
         :i "C-n" #'next-line
         :i "C-p" #'previous-line))
 #+end_src
-* Lang
-** Lsp config
+
+* Program
+** lsp-mode config
 还没有让它正常工作
-#+begin_src emacs-lisp :tangle no
-;; LSP UI Sideline - 总是显示诊断信息在行尾
-(setq lsp-ui-sideline-show-diagnostics t      ; 显示诊断信息
-      lsp-ui-sideline-show-hover nil          ; 不显示hover信息
-      lsp-ui-sideline-show-code-actions t     ; 显示代码操作
-      lsp-ui-sideline-update-mode 'line       ; 只在当前行更新
-      lsp-ui-sideline-delay 0.1               ; 减少延迟
-      lsp-ui-sideline-diagnostic-max-lines 1  ; 每个诊断最多显示行数
-      lsp-ui-sideline-diagnostic-max-line-length 100) ; 最大行长度
+
+#+begin_src emacs-lisp
+(after! lsp-mode
+  (setq lsp-idle-delay 0.5
+        lsp-log-io nil
+        lsp-completion-provider :capf
+        lsp-enable-file-watchers nil
+        lsp-enable-folding nil
+        lsp-enable-text-document-color nil
+        lsp-enable-on-type-formatting nil
+        lsp-enable-snippet nil
+        lsp-enable-symbol-highlighting nil
+        lsp-enable-links nil
+        lsp-lens-enable t  ;; 不起作用？
+        lsp-headerline-breadcrumb-enable t))
+
+;; LSP UI settings for better performance
+(after! lsp-ui
+  (setq lsp-ui-doc-enable nil
+        lsp-ui-sideline-show-diagnostics t      ; 显示诊断信息
+        lsp-ui-sideline-show-hover nil          ; 不显示hover信息
+        lsp-ui-sideline-show-code-actions nil   ; 显示代码操作
+        lsp-ui-sideline-update-mode 'line       ; 只在当前行更新
+        lsp-ui-sideline-delay 0.1               ; 减少延迟
+        lsp-ui-sideline-diagnostic-max-lines 3  ; 每个诊断最多显示行数
+        lsp-ui-sideline-diagnostic-max-line-length 100 ; 最大行长度
+        lsp-ui-peek-enable t))
+#+end_src
+
+** C/C++
+我希望使用 gdb 调试，怎么写 dape 配置？
+
+#+begin_src emacs-lisp
+;; 定义运行 C++ 文件的函数
+(defun my-run-cpp ()
+  "Compile and run current C++ file with optimization flags."
+  (interactive)
+  (save-buffer) ;; 保存当前文件（对应 :w）
+  (let* ((cfile (buffer-file-name)) ; 获取当前文件路径
+         (out-file (file-name-sans-extension cfile))
+         (build-cmd (format "g++ -std=c++23 -Wshadow -Wconversion -Wall -static-libgcc -o %s.out %s && time %s.out < ~/IO/1.in > ~/IO/1.ans"
+                            out-file cfile out-file))) ; 完整编译命令
+    (split-window-vertically) ; 创建新窗口
+    (other-window 1) ; 切换到新窗口
+    (compile build-cmd))) ; 启动编译任务
+
+
+(defun my-run-cpp-debug ()
+  "Compile C++ source with debug mode (-g)."
+  (interactive)
+  (save-buffer)
+  (let* ((cfile (buffer-file-name))
+         (out-file (file-name-sans-extension cfile))
+         (build-cmd (format "g++ -g -std=c++23 -Wshadow -Wconversion -Wall -static-libgcc -o %s.out %s"
+                            out-file cfile)))
+    (split-window-vertically)
+    (other-window 1)
+    (compile build-cmd)))
+
+
+;; 在 c++-mode 下设置快捷键
+(add-hook 'c++-mode-hook
+          (lambda ()
+            (define-key c++-mode-map (kbd "M-n") 'my-run-cpp) ; Alt-n
+            ;; (define-key c++-mode-map (kbd "M-m") 'my-run-cpp-debug) ; Alt-m
+            ;; 如果你想要支持 F7/F8 看注释里的 Neovim 代码
+            ;; (define-key c++-mode-map (kbd "<f7>") 'my-run-cpp)
+            ;; (define-key c++-mode-map (kbd "<f8>") 'my-run-cpp-debug)
+            ))
+#+end_src
+
+** Python
+*** lsp-pyright config
+切换到 basedpyright
+#+begin_src emacs-lisp
+(setq lsp-pyright-langserver-command "basedpyright")
+#+end_src
+
+*** dape config
+自带的 debugpy 配置不能正常工作。。。
+
+** claude-code-ide.el
+#+begin_src emacs-lisp :tangle packages.el
+(package! claude-code-ide
+  :recipe (:host github :repo "manzaltu/claude-code-ide.el"))
+#+end_src
+
+** copilot.el
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! copilot
+  :recipe (:host github :repo "copilot-emacs/copilot.el" :files ("*.el")))
+#+end_src
+
+
+#+begin_src emacs-lisp
+;; accept completion from copilot and fallback to company
+(use-package! copilot
+  :hook (prog-mode . copilot-mode)
+  :bind (:map copilot-completion-map
+              ("<tab>" . 'copilot-accept-completion)
+              ("TAB" . 'copilot-accept-completion)
+              ("C-TAB" . 'copilot-accept-completion-by-word)
+              ("C-<tab>" . 'copilot-accept-completion-by-word)
+
+              ;; ;; Accept completions (Fish-shell inspired, no conflicts)
+              ;; ("<right>" . 'copilot-accept-completion)
+              ;; ("C-f" . 'copilot-accept-completion)
+
+              ;; ;; Word-by-word acceptance
+              ;; ("M-<right>" . 'copilot-accept-completion-by-word)
+              ;; ("M-f" . 'copilot-accept-completion-by-word)
+
+              ;; ;; Line-by-line and navigation
+              ;; ("C-e" . 'copilot-accept-completion-by-line)
+              ;; ("<end>" . 'copilot-accept-completion-by-line)
+              ;; ("M-n" . 'copilot-next-completion)
+              ;; ("M-p" . 'copilot-previous-completion)
+              ;; ("C-g" . 'copilot-clear-overlay)
+              )
+  :config
+  (setq copilot-indent-offset-warning-disable t)
+  (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 2))
+  ;; Enable only in insert state for Evil users
+  (when (modulep! :editor evil)
+    (setq copilot-enable-predicates '(evil-insert-state-p)))
+
+  ;; Disable in problematic modes
+  (add-to-list 'copilot-disable-predicates
+               (lambda () (member major-mode '(shell-mode eshell-mode term-mode
+                                               vterm-mode comint-mode)))))
+#+end_src
+
+*** 遇到的一些小问题
+[[https://github.com/copilot-emacs/copilot.el/issues/312][copilot-emacs/copilot.el#312 Warning (copilot): copilot--infer-indentation-of...]]
+这个问题主要来自一些模式下 copilot 不能正确推断缩进，这个时候需要我们自己手动配置一下，或者干脆禁用掉这个警告
+
+corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 company 生态里有 company-box 可以解决这个问题
+
+有一些信息来源说有 company 依赖，实际上是没有的
+[[https://emacs-china.org/t/copilot/20348/20?u=0wd0][Copilot 非官方插件 - #20，来自 zerol - Emacs-general - Emacs China]]
+
+** corfu
+#+begin_src emacs-lisp
+;;; Corfu configuration
+(after! corfu
+  (setq corfu-auto t                    ; Enable auto completion
+        corfu-auto-delay 0.0            ; Balanced performance
+        corfu-auto-prefix 2             ; Minimum prefix length
+        corfu-cycle t                   ; Enable cycling
+        +corfu-want-tab-prefer-expand-snippets t))
 #+end_src
