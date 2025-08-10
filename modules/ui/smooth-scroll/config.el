@@ -44,6 +44,21 @@
   :type '(choice function null)
   :group 'neoscroll)
 
+(defcustom neoscroll-scroll-duration 0.15
+  "Default duration for C-u/C-d scrolling in seconds."
+  :type 'float
+  :group 'neoscroll)
+
+(defcustom neoscroll-page-duration 0.25
+  "Default duration for C-f/C-b page scrolling in seconds."
+  :type 'float
+  :group 'neoscroll)
+
+(defcustom neoscroll-line-duration 0.05
+  "Default duration for C-y/C-e line scrolling in seconds."
+  :type 'float
+  :group 'neoscroll)
+
 ;;
 ;;; Core variables
 
@@ -142,31 +157,51 @@
 ;;
 ;;; Main scrolling function
 
+(defvar neoscroll--target-line 0 "Target line to scroll to")
+(defvar neoscroll--relative-line 0 "Current relative line position")
+(defvar neoscroll--total-lines 0 "Total lines to scroll")
+
+(defun neoscroll--compute-time-step (lines-to-scroll)
+  "Compute time step based on remaining lines and easing function."
+  (let* ((lines-range (abs neoscroll--total-lines))
+         (duration (or (plist-get neoscroll--current-opts :duration) 0.25))
+         (duration-ms (* duration 1000))
+         (easing (or (plist-get neoscroll--current-opts :easing) neoscroll-easing)))
+    
+    (cond
+     ((< lines-to-scroll 1) 1000)
+     ((eq easing 'linear)
+      (max 1 (floor (/ duration-ms (max 1 (1- lines-range))))))
+     (t
+      (let* ((ef (pcase easing
+                   ('quadratic (lambda (x) (- 1 (expt (- 1 x) 0.5))))
+                   ('cubic (lambda (x) (- 1 (expt (- 1 x) (/ 1.0 3)))))
+                   ('sine (lambda (x) (/ (* 2 (asin x)) pi)))
+                   (_ (lambda (x) x))))
+             (x1 (/ (float (- lines-range lines-to-scroll)) lines-range))
+             (x2 (/ (float (- lines-range lines-to-scroll -1)) lines-range))
+             (time-step (floor (* duration-ms (- (funcall ef x2) (funcall ef x1))))))
+        (max 1 time-step))))))
+
+(defvar neoscroll--current-opts nil "Current scroll options")
+
 (defun neoscroll-scroll (lines &optional opts)
-  "Scroll LINES with options OPTS."
+  "Scroll LINES with options OPTS using neoscroll.nvim algorithm."
   (let* ((opts (or opts '()))
-         (duration (or (plist-get opts :duration) 0.25))
-         (easing (or (plist-get opts :easing) neoscroll-easing))
          (move-cursor (if (plist-member opts :move-cursor) 
                           (plist-get opts :move-cursor) 
                         t))
-         (info (plist-get opts :info))
-         (duration (* duration neoscroll-duration-multiplier))
-         (steps 30)
-         (delay (/ duration steps))
-         (step-count 0)
-         (start-line (line-number-at-pos))
-         (start-col (current-column))
-         (start-goal-col (or goal-column start-col))
-         (line-height (neoscroll--line-pixel-height))
-         (total-pixels (* lines line-height))
-         (pixels-per-step (/ total-pixels steps)))
+         (info (plist-get opts :info)))
     
     ;; Interrupt any ongoing animation
     (neoscroll--interrupt)
     
     ;; Early exit if no scrolling needed  
     (unless (zerop lines)
+      (setq neoscroll--current-opts opts
+            neoscroll--total-lines lines
+            neoscroll--target-line lines
+            neoscroll--relative-line 0)
       
       ;; Run pre-hook
       (when neoscroll-pre-hook
@@ -177,79 +212,67 @@
       
       ;; Clear any existing highlight overlays to prevent ghosting
       (when (bound-and-true-p hl-line-mode)
-        (hl-line-unhighlight)
-        ;; Force removal of any stray hl-line overlays
-        (dolist (overlay (overlays-in (point-min) (point-max)))
-          (when (overlay-get overlay 'hl-line)
-            (delete-overlay overlay))))
+        (hl-line-unhighlight))
       (when (bound-and-true-p global-hl-line-mode)
         (global-hl-line-unhighlight))
       
       ;; Set up animation state
       (setq neoscroll--active t
-            neoscroll--interrupt-flag nil
-            goal-column start-goal-col)
+            neoscroll--interrupt-flag nil)
       
-      ;; Define animation step function
-      (cl-labels ((animate-step ()
-                    (cond
-                     ;; Check for interruption
-                     ((or neoscroll--interrupt-flag 
-                          (neoscroll--check-input)
-                          (>= step-count steps))
-                      (neoscroll--cursor-show)
-                      ;; Final cleanup: remove all hl-line overlays and refresh
-                      (dolist (overlay (overlays-in (point-min) (point-max)))
-                        (when (overlay-get overlay 'hl-line)
-                          (delete-overlay overlay)))
-                      ;; Trigger proper highlight refresh
-                      (when (or (bound-and-true-p hl-line-mode)
-                                (bound-and-true-p global-hl-line-mode))
-                        (run-hooks 'post-command-hook))
-                      (when neoscroll-post-hook
-                        (funcall neoscroll-post-hook info))
-                      (setq neoscroll--timer nil
-                            neoscroll--active nil))
-                     
-                     ;; Continue animation
-                     (t
-                      (let* ((progress (/ (float step-count) steps))
-                             (eased-progress (neoscroll--apply-easing progress easing))
-                             (current-pixels (* total-pixels eased-progress))
-                             (prev-progress (if (> step-count 0)
-                                               (/ (float (1- step-count)) steps)
-                                             0.0))
-                             (prev-pixels (* total-pixels 
-                                            (neoscroll--apply-easing prev-progress easing)))
-                             (step-pixels (- current-pixels prev-pixels)))
-                        
-                        ;; Move cursor and scroll together for smooth experience
-                        (if move-cursor
-                            ;; Move cursor first, then adjust window view
-                            (let ((target-line (+ start-line 
-                                                 (round (* lines eased-progress)))))
-                              (goto-char (point-min))
-                              (forward-line (1- target-line))
-                              (move-to-column start-goal-col)
-                              ;; Keep cursor in same relative position as start
-                              (let ((current-window-line (- (line-number-at-pos) 
-                                                           (line-number-at-pos (window-start)))))
-                                ;; Use pixel scrolling only for window adjustment
-                                (neoscroll--scroll-pixels step-pixels))
-                              ;; Force highlight refresh
-                              (when (bound-and-true-p hl-line-mode)
-                                (run-hooks 'post-command-hook))
-                              (when (bound-and-true-p global-hl-line-mode)
-                                (run-hooks 'post-command-hook)))
-                          ;; Just scroll without moving cursor
-                          (neoscroll--scroll-pixels step-pixels))
-                        
-                        (setq step-count (1+ step-count))
-                        (setq neoscroll--timer 
-                              (run-with-timer delay nil #'animate-step)))))))
-        
-        ;; Start animation
-        (animate-step)))))
+      ;; Start scrolling
+      (neoscroll--scroll-one-step move-cursor info))))
+
+(defun neoscroll--lines-to-scroll ()
+  "Get remaining lines to scroll."
+  (- neoscroll--target-line neoscroll--relative-line))
+
+(defun neoscroll--scroll-one-step (move-cursor info)
+  "Scroll one line and schedule next step."
+  (let ((lines-to-scroll (neoscroll--lines-to-scroll)))
+    (cond
+     ;; Check for interruption or completion
+     ((or neoscroll--interrupt-flag 
+          (neoscroll--check-input)
+          (zerop lines-to-scroll))
+      (neoscroll--cursor-show)
+      ;; Trigger proper highlight refresh
+      (when (or (bound-and-true-p hl-line-mode)
+                (bound-and-true-p global-hl-line-mode))
+        (run-hooks 'post-command-hook))
+      (when neoscroll-post-hook
+        (funcall neoscroll-post-hook info))
+      (setq neoscroll--timer nil
+            neoscroll--active nil))
+     
+     ;; Continue scrolling
+     (t
+      ;; Scroll one line
+      (if move-cursor
+          (if (> lines-to-scroll 0)
+              (progn (scroll-up 1) (forward-line 1))
+            (progn (scroll-down 1) (forward-line -1)))
+        (if (> lines-to-scroll 0)
+            (scroll-up 1)
+          (scroll-down 1)))
+      
+      ;; Update position
+      (setq neoscroll--relative-line (+ neoscroll--relative-line 
+                                       (if (> lines-to-scroll 0) 1 -1)))
+      
+      ;; Force highlight refresh
+      (when (bound-and-true-p hl-line-mode)
+        (run-hooks 'post-command-hook))
+      (when (bound-and-true-p global-hl-line-mode)
+        (run-hooks 'post-command-hook))
+      
+      ;; Schedule next step
+      (let* ((remaining-lines (abs (neoscroll--lines-to-scroll)))
+             (time-step-ms (neoscroll--compute-time-step remaining-lines))
+             (time-step-sec (/ time-step-ms 1000.0)))
+        (setq neoscroll--timer 
+              (run-with-timer time-step-sec nil 
+                             #'neoscroll--scroll-one-step move-cursor info)))))))
 
 ;;
 ;;; Predefined scroll commands
@@ -259,38 +282,38 @@
   (interactive)
   (let ((scroll-amount (max 1 (/ (window-height) 2))))
     (neoscroll-scroll (- scroll-amount)
-                     (append opts '(:duration 0.25)))))
+                     (append opts `(:duration ,neoscroll-scroll-duration)))))
 
 (defun neoscroll-ctrl-d (&optional opts)
   "Smooth scroll down half page."
   (interactive)
   (let ((scroll-amount (max 1 (/ (window-height) 2))))
     (neoscroll-scroll scroll-amount
-                     (append opts '(:duration 0.25)))))
+                     (append opts `(:duration ,neoscroll-scroll-duration)))))
 
 (defun neoscroll-ctrl-b (&optional opts)
   "Smooth scroll up full page."
   (interactive)
   (neoscroll-scroll (- (window-height))
-                   (append opts '(:duration 0.35))))
+                   (append opts `(:duration ,neoscroll-page-duration))))
 
 (defun neoscroll-ctrl-f (&optional opts)
   "Smooth scroll down full page."
   (interactive)
   (neoscroll-scroll (window-height)
-                   (append opts '(:duration 0.35))))
+                   (append opts `(:duration ,neoscroll-page-duration))))
 
 (defun neoscroll-ctrl-y (&optional opts)
   "Smooth scroll up one line."
   (interactive)
   (neoscroll-scroll -1
-                   (append opts '(:duration 0.1 :move-cursor nil))))
+                   (append opts `(:duration ,neoscroll-line-duration :move-cursor nil))))
 
 (defun neoscroll-ctrl-e (&optional opts)
   "Smooth scroll down one line."
   (interactive)
   (neoscroll-scroll 1
-                   (append opts '(:duration 0.1 :move-cursor nil))))
+                   (append opts `(:duration ,neoscroll-line-duration :move-cursor nil))))
 
 ;;
 ;;; Setup function
