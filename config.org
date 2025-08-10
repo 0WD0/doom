@@ -69,6 +69,16 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 (setq tab-width 4)
 #+end_src
 
+** indent-bars
+
+如果 =indent-bars-starting-column= 为 0，会在 org-mode 的 latex 片段的前面一个空格显示竖线！
+
+#+begin_src emacs-lisp
+(after! indent-bars
+  (setq indent-bars-treesit-support t
+        indent-bars-starting-column nil))
+#+end_src
+
 ** consult.el
 
 来自官方文档
@@ -250,14 +260,14 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
    '(org-level-8 :foreground "#4f5973" :weight normal))               ; 最暗
 #+end_src
 
+$lj$     $kj$
+
 *** org-mode 代码块颜色配置
 
 #+begin_src emacs-lisp
 ;; 自定义 org-mode 代码块颜色 - 与 catppuccin frappe 主题协调
 (after! org
   (custom-set-faces!
-   ;; 代码块背景 - 使用稍暗的背景色
-   ;; '(org-block :background "#292c3c" :extend t)
    ;; 代码块开始/结束标记
    '(org-block-begin-line :background "#232634" :foreground "#737994" :extend t)
    '(org-block-end-line :background "#232634" :foreground "#737994" :extend t)
@@ -274,10 +284,13 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
               (indent-bars-mode -1))))
 #+end_src
 
-
 ** org-roam 增强
 
 *** 快速打开 =:ROAM_REFS:=
+
+一般来说不会有很多 ROAM_REFS
+
+竟然这么好实现
 
 #+begin_src emacs-lisp
 (defun my/open-roam-refs ()
@@ -440,29 +453,15 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 *** Highlight
 
-不知道怎么单独设置行内 LaTeX 块的背景颜色，貌似和代码块是绑在一起的，没有成功
-#+begin_src emacs-lisp :tangle no
-(setq org-highlight-latex-and-related '(native script))
+[[https://stackoverflow.com/questions/69474043/emacs-org-mode-background-color-of-latex-fragments-with-org-highlight-latex-a][Emacs org mode: background color of latex fragments (with `org-highlight-latex-and-related`) : which variable to change?]]
 
-(after! org
-  ;; 设置LaTeX公式背景色与正常文本背景一致
-  (custom-set-faces!
-   `(org-latex-and-related :background ,(doom-color 'bg) :inherit nil))
-  
-  ;; 强制设置org-latex-and-related face的背景
-  (defun my/fix-latex-background ()
-    "Fix LaTeX fragments background in org-mode"
-    (when (eq major-mode 'org-mode)
-      (face-remap-add-relative 'org-latex-and-related 
-                               :background (doom-color 'bg))))
-  
-  (add-hook 'org-mode-hook #'my/fix-latex-background)
-  (add-hook 'doom-load-theme-hook #'my/fix-latex-background))
+单独设置行内 LaTeX 块的背景颜色
 
-;; (after! org-src
-;;   (add-to-list 'org-src-block-faces
-;;                `("latex" (:background ,(doom-color 'bg)
-;;                           :extend t))))
+#+begin_src emacs-lisp
+(after! org-src
+  (add-to-list 'org-src-block-faces
+               '("latex" (:inherit default :extend t)))
+  )
 #+end_src
 
 *** evil-mode
@@ -472,6 +471,11 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (add-hook! 'org-src-mode-hook
   (when (string= major-mode "latex-mode")
     (evil-tex-mode 1)))
+#+end_src
+** org-passwords.el
+
+#+begin_src emacs-lisp
+(setq org-passwords-file "~/org/passwords.gpg")
 #+end_src
 
 ** ox-hugo
@@ -490,6 +494,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   (interactive "r")
   (shell-command-on-region start end "pandoc -f markdown -t org" t t))
 #+end_src
+
+** TODO 在 roam 链接上按 K lookup 打开预览窗口
+
+
 
 ** Deft :ARCHIVE:
 我觉得完全用不到，这不适合和 org-roam 配合使用
