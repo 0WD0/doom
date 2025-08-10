@@ -352,12 +352,45 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
                 (my/org-auto-fold-chat-headings)))))
 #+end_src
 
-** org-babel
+** org-babel 配置
+
+*** 让 lsp-mode 在 org-src-mode 下工作
+
+[[https://tecosaur.github.io/emacs-config/config.html#lsp-support-src][tecosaur's Doom Emacs Configuration]]
+在这里抄的
 
 #+begin_src emacs-lisp
-(defun org-babel-edit-prep:cpp (babel-info)
-  (setq-local buffer-file-name (->> babel-info caddr (alist-get :tangle)))
-  (lsp))
+(cl-defmacro lsp-org-babel-enable (lang)
+  "Support LANG in org source code block."
+  (setq centaur-lsp 'lsp-mode)
+  (cl-check-type lang string)
+  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+    `(progn
+       (defun ,intern-pre (info)
+         (let ((file-name (->> info caddr (alist-get :file))))
+           (unless file-name
+             (setq file-name (make-temp-file "babel-lsp-")))
+           (setq buffer-file-name file-name)
+           (lsp-deferred)))
+       (put ',intern-pre 'function-documentation
+            (format "Enable lsp-mode in the buffer of org source block (%s)."
+                    (upcase ,lang)))
+       (if (fboundp ',edit-pre)
+           (advice-add ',edit-pre :after ',intern-pre)
+         (progn
+           (defun ,edit-pre (info)
+             (,intern-pre info))
+           (put ',edit-pre 'function-documentation
+                (format "Prepare local buffer environment for org source block (%s)."
+                        (upcase ,lang))))))))
+
+(defvar org-babel-lang-list
+  '("go" "python" "ipython" "bash" "sh" "cpp"))
+
+(dolist (lang org-babel-lang-list)
+  (eval `(lsp-org-babel-enable ,lang)))
+
 #+end_src
 
 *** ob-C-stdin
