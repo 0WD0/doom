@@ -175,7 +175,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (setq org-directory "~/org"
       org-roam-directory "~/org/roam"
       org-roam-completion-everywhere t
-      org-agenda-files '("~/org")
+      org-agenda-files (directory-files-recursively "~/org/" "\\.org$")
       org-src-fontify-natively t
       org-src-tab-acts-natively t
       ;; org-confirm-babel-evaluate nil
