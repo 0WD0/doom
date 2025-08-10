@@ -260,8 +260,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
    '(org-level-8 :foreground "#4f5973" :weight normal))               ; 最暗
 #+end_src
 
-$lj$     $kj$
-
 *** org-mode 代码块颜色配置
 
 #+begin_src emacs-lisp
@@ -352,6 +350,12 @@ $lj$     $kj$
 #+end_src
 
 ** org-babel
+
+#+begin_src emacs-lisp
+(defun org-babel-edit-prep:cpp (babel-info)
+  (setq-local buffer-file-name (->> babel-info caddr (alist-get :tangle)))
+  (lsp))
+#+end_src
 
 *** ob-C-stdin
 
@@ -472,16 +476,11 @@ $lj$     $kj$
   (when (string= major-mode "latex-mode")
     (evil-tex-mode 1)))
 #+end_src
+
 ** org-passwords.el
 
 #+begin_src emacs-lisp
 (setq org-passwords-file "~/org/passwords.gpg")
-#+end_src
-
-** ox-hugo
-#+begin_src emacs-lisp
-(after! org
-  (setq org-id-extra-files (directory-files-recursively org-roam-directory "\.org$")))
 #+end_src
 
 ** 把一个 region 转换为 org-mode
@@ -498,6 +497,12 @@ $lj$     $kj$
 ** TODO 在 roam 链接上按 K lookup 打开预览窗口
 
 
+** ox-hugo :ARCHIVE:
+#+begin_src emacs-lisp :tangle no
+(after! org
+  (setq org-id-extra-files (append (directory-files-recursively org-roam-directory "\.org$")
+                                    (list (expand-file-name "config.org" doom-user-dir)))))
+#+end_src
 
 ** Deft :ARCHIVE:
 我觉得完全用不到，这不适合和 org-roam 配合使用
