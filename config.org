@@ -202,10 +202,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (use-package! org-modern
   :hook (org-mode . org-modern-mode)
   :hook (org-agenda-finalize . org-modern-agenda)
-  :init
-  (after! org
-    (setq org-hide-emphasis-markers t
-          org-pretty-entities nil))
   :config
   ;; HACK: The default unicode symbol for checked boxes often turn out much
   ;;   larger than the others, so I swap it out with one that's more likely to
