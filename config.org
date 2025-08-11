@@ -669,6 +669,13 @@ The exceptions to this rule:
 
 * evil 相关
 
+** 输入法切换快捷键
+
+将 `toggle-input-method` 从默认的 `C-\` 改为 `C-TAB`，减少右手负担
+#+begin_src emacs-lisp
+(map! [C-tab] #'toggle-input-method)
+#+end_src
+
 ** insert mode 中 C-n/p 设置为上下行
 
 因为它本来是补全相关的，所以只要改 corfu 的设置就行了
