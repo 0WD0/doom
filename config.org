@@ -702,6 +702,53 @@ The exceptions to this rule:
         :i "C-p" #'previous-line))
 #+end_src
 
+** insert mode 中 C-h/l 重新设计
+
+=C-h= 退格，=C-l= 撤回退格操作
+
+#+begin_src emacs-lisp
+;; 创建一个变量来存储被删除的字符
+(defvar my/evil-insert-deleted-chars nil
+  "Stack of characters deleted by C-h in evil insert mode.")
+
+(defun my/evil-insert-backspace ()
+  "Delete backward char and save it for potential undo with C-l."
+  (interactive)
+  (when (> (point) (point-min))
+    (let ((char (char-before)))
+      (when char
+        ;; 将删除的字符推入栈
+        (push char my/evil-insert-deleted-chars)
+        ;; 删除字符
+        (delete-backward-char 1)))))
+
+(defun my/evil-insert-undo-backspace ()
+  "Undo the last backspace operation by reinserting the deleted character."
+  (interactive)
+  (when my/evil-insert-deleted-chars
+    ;; 从栈中弹出字符并插入
+    (let ((char (pop my/evil-insert-deleted-chars)))
+      (insert char))))
+
+;; 清空删除字符栈当退出 insert mode 时
+(defun my/evil-insert-clear-deleted-chars ()
+  "Clear the deleted characters stack."
+  (setq my/evil-insert-deleted-chars nil))
+
+;; 在退出 insert mode 时清空栈
+(add-hook 'evil-insert-state-exit-hook #'my/evil-insert-clear-deleted-chars)
+
+;; 绑定按键 - 使用 after! 确保优先级
+(map! :i "C-h" #'my/evil-insert-backspace
+      :i "C-l" #'my/evil-insert-undo-backspace)
+
+;; 在 org-mode 中也确保生效（需要使用 evil-org-mode-map）
+(after! evil-org
+  (map! :map evil-org-mode-map
+        :i "C-h" #'my/evil-insert-backspace
+        :i "C-l" #'my/evil-insert-undo-backspace))
+#+end_src
+
 * Program
 ** Languages
 *** C/C++
