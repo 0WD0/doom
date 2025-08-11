@@ -667,7 +667,9 @@ The exceptions to this rule:
         org-modern-table nil))
 #+end_src
 
-* evil 相关
+
+
+* Input Method
 
 ** 输入法切换快捷键
 
@@ -675,6 +677,16 @@ The exceptions to this rule:
 #+begin_src emacs-lisp
 (map! [C-tab] #'toggle-input-method)
 #+end_src
+
+** rime config
+
+#+begin_src emacs-lisp
+(after! rime
+  (setq rime-translate-keybindings
+        '("C-h" "C-f" "C-b" "C-n" "C-p" "<tab>" "C-a" "C-s" "C-c")))
+#+end_src
+
+* evil 相关
 
 ** insert mode 中 C-n/p 设置为上下行
 
