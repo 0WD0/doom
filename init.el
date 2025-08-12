@@ -18,7 +18,10 @@
 
 ;; (setq evil-disable-insert-state-bindings t)
 
-(doom! :input
+(doom! :CP
+	   cpp
+
+       :input
        ;;bidi              ; (tfel ot) thgir etirw uoy gnipleh
        rime
        ;;japanese

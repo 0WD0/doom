@@ -1,0 +1,256 @@
+#+TITLE: CP/cpp Module
+#+AUTHOR: Your Name
+#+EMAIL: your.email@example.com
+
+* Description
+This module provides competitive programming C++ development environment for Doom Emacs using the =cp-cpp= package. It offers enhanced compilation with caching, test case management, debugging support, and various utilities specifically designed for competitive programming workflows.
+
+** Maintainers
+- You ([@yourusername])
+
+** Module flags
+This module has no flags.
+
+** Packages
+- [[https://github.com/user/cp-cpp][cp-cpp]]
+
+** Hacks
+None.
+
+* Prerequisites
+This module requires:
+- A C++ compiler (preferably =g++= or =clang++=)
+- =gdb= for debugging support (optional)
+- Basic understanding of competitive programming workflows
+
+* Features
+** Smart Compilation System
+- Intelligent caching to avoid unnecessary recompilations
+- Customizable compilation flags for different build types
+- Support for both debug and optimized builds
+
+** Test Case Management
+- Easy creation and management of input/output test files
+- Support for multiple test cases per problem
+- Batch testing against all available test cases
+- File input vs interactive input modes
+
+** Debugging and Analysis
+- GDB integration for debugging
+- Performance benchmarking with timing information
+- Output comparison tools
+- Compilation cache analysis
+
+** Doom Integration
+- Seamless integration with Doom's key binding system
+- Popup window management for test results and cache info
+- Workspace integration for organizing problems
+- Template system for common competitive programming patterns
+
+* Installation
+Add =CP cpp= to your =doom!= block in =~/.config/doom/init.el=:
+
+#+begin_src emacs-lisp
+(doom! ;; ... other modules
+       ;; ... other categories
+       
+       ;; Custom modules
+       CP
+       cpp
+       
+       ;; ... rest of config
+       )
+#+end_src
+
+Then run:
+#+begin_src shell
+doom sync
+#+end_src
+
+* Configuration
+** Basic Setup
+The module automatically configures reasonable defaults for competitive programming. The default configuration creates an IO directory at =~/CP/IO= for test cases.
+
+** Customization
+You can customize various aspects of the module:
+
+#+begin_src emacs-lisp
+;; In your config.el
+(setq cp-cpp-io-directory "~/CompetitiveProgramming/IO"  ; Custom IO directory
+      cp-cpp-compiler "clang++"                         ; Use clang++ instead of g++
+      cp-cpp-compile-flags "-std=c++23 -Wall -Wextra"   ; Custom compilation flags
+      cp-cpp-enable-compile-cache t)                     ; Enable smart caching
+#+end_src
+
+** Terminal Configuration
+The module provides flexible terminal options for interactive execution:
+
+#+begin_src emacs-lisp
+;; Terminal configuration options
+(setq cp-cpp-terminal-type 'auto)  ; Options: auto, vterm, ansi-term, compile, external, custom
+
+;; For external terminal (when cp-cpp-terminal-type is 'external)
+(setq cp-cpp-external-terminal-command "gnome-terminal -- %s")  ; Use %s for executable path
+
+;; For custom terminal function (when cp-cpp-terminal-type is 'custom)
+(setq cp-cpp-custom-terminal-function
+      (lambda (exe-file)
+        (start-process "cp-cpp" nil "my-terminal" "-e" exe-file)))
+#+end_src
+
+*** Terminal Types
+- =auto=: Automatically choose best available (vterm > ansi-term > compile)
+- =vterm=: Use VTerm (best terminal emulation, requires vterm package)
+- =ansi-term=: Use built-in ansi-term
+- =compile=: Use compilation buffer (non-interactive)
+- =external=: Launch external terminal application
+- =custom=: Use custom function
+
+*** External Terminal Examples
+#+begin_src emacs-lisp
+;; Common terminal configurations
+(setq cp-cpp-external-terminal-command "gnome-terminal -- %s")     ; GNOME Terminal
+(setq cp-cpp-external-terminal-command "xterm -e %s")              ; XTerm
+(setq cp-cpp-external-terminal-command "konsole -e %s")            ; KDE Konsole
+(setq cp-cpp-external-terminal-command "alacritty -e %s")          ; Alacritty
+(setq cp-cpp-external-terminal-command "kitty %s")                 ; Kitty
+(setq cp-cpp-external-terminal-command "wezterm start %s")         ; WezTerm
+#+end_src
+
+** Project-based Configuration
+The module integrates with Projectile to automatically set the IO directory relative to your project root:
+
+#+begin_src
+my-cp-project/
+├── solution.cpp
+└── IO/
+    ├── test1.in
+    ├── test1.ans
+    ├── test2.in
+    └── test2.ans
+#+end_src
+
+* Usage
+** Key Bindings
+
+*** Local Leader (=SPC m= in normal mode, =C-c= in insert mode)
+| Key | Description |
+|-----+-------------|
+| =c r= | Run current C++ file |
+| =c d= | Run with debug flags |
+| =c g= | Start GDB debugging session |
+
+**** Test Management (=c t= prefix)
+| Key | Description |
+|-----+-------------|
+| =c t t= | Toggle between file and interactive input |
+| =c t s= | Select test case |
+| =c t n= | Create new test case |
+| =c t a= | Run all test cases |
+| =c t c= | Compare output with expected |
+
+**** Utilities
+| Key | Description |
+|-----+-------------|
+| =c b= | Benchmark with timing |
+| =c l= | Clean output files |
+| =c i= | Show current status |
+| =c I= | Insert common CP includes |
+| =c T= | Load template |
+
+**** Configuration
+| Key | Description |
+|-----+-------------|
+| =c C= | Customize compilation options |
+| =c S= | Show current compile command |
+| =c E= | Configure terminal type and external command |
+| =c D= | Configure terminal display (position, size, focus) |
+| =c != | Test terminal configuration |
+
+**** Cache Management (=c x= prefix)
+| Key | Description |
+|-----+-------------|
+| =c x c= | Clear compilation cache |
+| =c x i= | Show cache information |
+
+*** Function Keys (Optional Quick Access)
+| Key | Description |
+|-----+-------------|
+| =<f5>= | Run current file |
+| =<f6>= | Run with debug |
+| =<f7>= | Run all tests |
+| =<f8>= | Toggle input mode |
+
+*** Global Leader Bindings
+| Key | Description |
+|-----+-------------|
+| =SPC TAB N= | Create new CP workspace |
+
+** Workflow Example
+1. Create a new workspace: =SPC TAB N=
+2. Write your solution in the opened C++ file
+3. Create test cases: =SPC m c t n=
+4. Run against test case: =SPC m c r=
+5. Run all tests: =SPC m c t a=
+6. Debug if needed: =SPC m c g=
+7. Compare outputs: =SPC m c t c=
+
+** Templates
+The module supports template loading for common competitive programming patterns. Place your templates in =~/doom-user-dir/cp-cpp/= and load them with =SPC m c T=.
+
+Example template structure:
+#+begin_src
+~/.config/doom/cp-cpp/
+├── basic.cpp
+├── graph.cpp
+├── dp.cpp
+└── math.cpp
+#+end_src
+
+* Troubleshooting
+** Compilation Issues
+- Ensure your C++ compiler is properly installed and in PATH
+- Check compilation flags with =SPC m c S=
+- Clear cache if experiencing issues: =SPC m c x c=
+
+** Test Case Issues  
+- Verify IO directory exists and has proper permissions
+- Check current status: =SPC m c i=
+- Ensure test files follow the =.in= and =.ans= naming convention
+
+** Performance Issues
+- The module automatically disables some heavy features in CP mode
+- Compilation caching should significantly speed up repeated builds
+- Use =SPC m c x i= to monitor cache performance
+
+* TODO Appendix
+** Commands
+All interactive commands provided by the =cp-cpp= package are available and can be called via =M-x=:
+
+- =cp-cpp-mode= - Toggle the minor mode
+- =cp-cpp-run= - Compile and run
+- =cp-cpp-run-debug= - Compile with debug flags and run
+- =cp-cpp-start-gdb= - Start GDB session
+- =cp-cpp-select-test-case= - Select active test case
+- =cp-cpp-create-test-case= - Create new test case
+- =cp-cpp-toggle-input-mode= - Toggle input mode
+- =cp-cpp-run-all-tests= - Run all available tests
+- =cp-cpp-benchmark= - Benchmark execution
+- =cp-cpp-compare-output= - Compare outputs
+- =cp-cpp-clean-outputs= - Clean generated files
+- =cp-cpp-show-status= - Show current status
+- =cp-cpp-customize-compile-options= - Customize via Easy Customization
+- =cp-cpp-show-compile-command= - Show compile command
+- =cp-cpp-clear-compile-cache= - Clear cache
+- =cp-cpp-show-cache-info= - Show cache information
+
+** Variables
+Key customization variables:
+
+- =cp-cpp-io-directory= - Test case directory
+- =cp-cpp-compiler= - C++ compiler to use  
+- =cp-cpp-compile-flags= - Base compilation flags
+- =cp-cpp-optimize-flags= - Optimization flags
+- =cp-cpp-debug-flags= - Debug compilation flags
+- =cp-cpp-enable-compile-cache= - Enable intelligent caching
+- =cp-cpp-cache-file= - Cache file location

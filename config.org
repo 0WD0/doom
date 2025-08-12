@@ -81,6 +81,8 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 
 ** consult.el
 
+live preview
+
 来自官方文档
 #+begin_src emacs-lisp
 (after! consult
@@ -96,6 +98,8 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 #+end_src
 
 ** nov.el
+
+epub 支持
 
 #+begin_src emacs-lisp :tangle packages.el
 (package! nov)
@@ -182,6 +186,7 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 #+end_src
 
 * org-mode
+
 org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多配置选项来增强 org-mode 的功能。
 
 #+begin_src emacs-lisp
@@ -752,6 +757,9 @@ The exceptions to this rule:
 * Program
 ** Languages
 *** C/C++
+
+我会把大部分配置写在 CP/cpp 模块里
+
 **** 缩进
 
 #+begin_src emacs-lisp
@@ -762,45 +770,6 @@ The exceptions to this rule:
 **** 运行与调试
 
 我希望使用 gdb 调试，怎么写 dape 配置？
-
-#+begin_src emacs-lisp
-;; 定义运行 C++ 文件的函数
-(defun my-run-cpp ()
-  "Compile and run current C++ file with optimization flags."
-  (interactive)
-  (save-buffer) ;; 保存当前文件（对应 :w）
-  (let* ((cfile (buffer-file-name)) ; 获取当前文件路径
-         (out-file (file-name-sans-extension cfile))
-         (build-cmd (format "g++ -std=c++23 -Wshadow -Wconversion -Wall -static-libgcc -o %s.out %s && time %s.out < ~/IO/1.in > ~/IO/1.ans"
-                            out-file cfile out-file))) ; 完整编译命令
-    (split-window-vertically) ; 创建新窗口
-    (other-window 1) ; 切换到新窗口
-    (compile build-cmd))) ; 启动编译任务
-
-
-(defun my-run-cpp-debug ()
-  "Compile C++ source with debug mode (-g)."
-  (interactive)
-  (save-buffer)
-  (let* ((cfile (buffer-file-name))
-         (out-file (file-name-sans-extension cfile))
-         (build-cmd (format "g++ -g -std=c++23 -Wshadow -Wconversion -Wall -static-libgcc -o %s.out %s"
-                            out-file cfile)))
-    (split-window-vertically)
-    (other-window 1)
-    (compile build-cmd)))
-
-
-;; 在 c++-mode 下设置快捷键
-(add-hook 'c++-mode-hook
-          (lambda ()
-            (define-key c++-mode-map (kbd "M-n") 'my-run-cpp) ; Alt-n
-            ;; (define-key c++-mode-map (kbd "M-m") 'my-run-cpp-debug) ; Alt-m
-            ;; 如果你想要支持 F7/F8 看注释里的 Neovim 代码
-            ;; (define-key c++-mode-map (kbd "<f7>") 'my-run-cpp)
-            ;; (define-key c++-mode-map (kbd "<f8>") 'my-run-cpp-debug)
-            ))
-#+end_src
 
 *** Python
 
