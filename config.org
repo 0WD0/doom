@@ -231,7 +231,8 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   :hook (org-mode . org-modern-mode)
   :hook (org-agenda-finalize . org-modern-agenda)
   :init
-  (setq org-modern-todo nil)
+  (setq org-modern-todo nil
+        org-modern-list '((43 . "◦") (45 . "•") (42 . "–")))
 
   :config
   ;; HACK: The default unicode symbol for checked boxes often turn out much
@@ -327,7 +328,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       "b" #'my/open-roam-refs)
 #+end_src
 
-** TODO 自动为 :chat: 标签添加 folded VISIBILITY
+** TODO 自动为 =:chat:= 标签添加 folded VISIBILITY
 
 还未能正常工作
 
@@ -548,8 +549,11 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   (shell-command-on-region start end "pandoc -f markdown -t org" t t))
 #+end_src
 
-** TODO 在 roam 链接上按 K lookup 打开预览窗口
+** TODO 在 roam 链接上按 K lookup 打开临时预览窗口
 
+预览窗口是指按 q 退出（能回到上一层预览窗口就更好了）
+
+还有比如说在侧边打开而不是替换原窗口
 
 ** ox-hugo :ARCHIVE:
 #+begin_src emacs-lisp :tangle no
@@ -674,7 +678,7 @@ The exceptions to this rule:
 
 
 
-* Input Method
+* Input Method & 中文支持
 
 ** 输入法切换快捷键
 
@@ -683,6 +687,10 @@ The exceptions to this rule:
 (map! [C-tab] #'toggle-input-method)
 #+end_src
 
+但是在一些特殊情况下这个快捷键会已经被占用，有点难受
+比如说 org-roam-find 的 minibuffer 里
+调用的是 [[help:file-cache-minibuffer-complete]]
+
 ** rime config
 
 #+begin_src emacs-lisp
@@ -690,6 +698,10 @@ The exceptions to this rule:
   (setq rime-translate-keybindings
         '("C-h" "C-f" "C-b" "C-n" "C-p" "<tab>" "C-a" "C-s" "C-c")))
 #+end_src
+
+** DONE vertico 拼音搜索集成
+
+已经在 rime module 里实现了
 
 * evil 相关
 
@@ -709,7 +721,7 @@ The exceptions to this rule:
 
 ** insert mode 中 C-h/l 重新设计
 
-=C-h= 退格，=C-l= 撤回退格操作
+=C-h= 退格， =C-l= 撤回退格操作
 
 #+begin_src emacs-lisp
 ;; 创建一个变量来存储被删除的字符
@@ -753,6 +765,8 @@ The exceptions to this rule:
         :i "C-h" #'my/evil-insert-backspace
         :i "C-l" #'my/evil-insert-undo-backspace))
 #+end_src
+
+*** TODO minibuffer 支持
 
 * Program
 ** Languages
@@ -849,8 +863,8 @@ The exceptions to this rule:
   :bind (:map copilot-completion-map
               ("<tab>" . 'copilot-accept-completion)
               ("TAB" . 'copilot-accept-completion)
-              ("C-TAB" . 'copilot-accept-completion-by-word)
-              ("C-<tab>" . 'copilot-accept-completion-by-word)
+              ;; ("C-TAB" . 'copilot-accept-completion-by-word)
+              ;; ("C-<tab>" . 'copilot-accept-completion-by-word)
 
               ;; ;; Accept completions (Fish-shell inspired, no conflicts)
               ;; ("<right>" . 'copilot-accept-completion)
@@ -870,7 +884,7 @@ The exceptions to this rule:
   :config
   (setq copilot-indent-offset-warning-disable t)
   ;; (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 2))
-  
+
   ;; Enable only in insert state for Evil users
   (when (modulep! :editor evil)
     (setq copilot-enable-predicates '(evil-insert-state-p)))

@@ -31,7 +31,7 @@
   ;; Doom Emacs specific keybindings
   (map! :localleader
         :map c++-mode-map
-        :prefix ("c" . "competitive programming")
+        ;; :prefix ("c" . "competitive programming")
         
         ;; Basic operations
         "r" #'cp-cpp-run
@@ -40,7 +40,7 @@
         
         ;; Utilities
         "b" #'cp-cpp-benchmark
-        "l" #'cp-cpp-clean-outputs
+        ;; "l" #'cp-cpp-clean-outputs
         "i" #'cp-cpp-show-status
         
         ;; Multi-window layout
