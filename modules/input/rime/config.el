@@ -5,8 +5,7 @@
   :init
   (setq rime-user-data-dir (concat doom-cache-dir "rime/"))
   :config
-  (setq default-input-method "rime"
-        rime-show-candidate 'posframe)
+  (setq default-input-method "rime")
 
   (after! evil-escape
     (defun +rime--input-method-p ()
@@ -14,8 +13,15 @@
     (add-to-list 'evil-escape-inhibit-functions #'+rime--input-method-p))
 
   (when (modulep! +childframe)
-    (setq rime-show-candidate 'posframe)))
+    (setq rime-show-candidate 'posframe))
 
+  ;; allow vertico/selectrum search with pinyin
+  (cond ((modulep! :completion vertico)
+         (advice-add #'orderless-regexp
+                     :filter-return
+                     (if (modulep! :editor evil +everywhere)
+                         #'evil-pinyin--build-regexp-string ;;貌似正常情况下不会有 pyim 依赖，下面那个 else 就不改了
+                       #'pyim-cregexp-build)))))
 
 (use-package! pangu-spacing
   :hook (text-mode . pangu-spacing-mode)
@@ -31,6 +37,11 @@
   :config
   (setq-default evil-pinyin-with-search-rule 'always)
   (global-evil-pinyin-mode 1))
+
+(use-package! ace-pinyin
+  :after avy
+  :init (setq ace-pinyin-use-avy t)
+  :config (ace-pinyin-global-mode t))
 
 ;;
 ;;; Hacks
