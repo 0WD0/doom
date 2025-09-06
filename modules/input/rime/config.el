@@ -40,7 +40,6 @@
 
 (use-package! ace-pinyin
   :after avy
-  :init (setq ace-pinyin-use-avy t)
   :config (ace-pinyin-global-mode t))
 
 ;;

@@ -12,6 +12,18 @@
    `require' or `use-package'.
  - `map!' for binding new keys
 
+Whenever you reconfigure a package, make sure to wrap your config in an
+`after!' block, otherwise Doom's defaults may override your settings. E.g.
+
+  (after! PACKAGE
+    (setq x y))
+
+The exceptions to this rule:
+
+  - Setting file/directory variables (like `org-directory')
+  - Setting variables which explicitly tell you to set them before their
+    package is loaded (see 'C-h v VARIABLE' to look up their documentation).
+  - Setting doom variables (which start with 'doom-' or '+').
 
 To get information about any of these functions/macros, move the cursor over the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
 This will open documentation for it, including demos of how they are used. Alternatively, use `C-h o' to look up a symbol (functions, variables, faces, etc).
@@ -110,6 +122,45 @@ epub 支持
   :mode ("\\.epub\\'" . nov-mode)
   :config
   (setq nov-save-place-file (concat doom-cache-dir "nov-places")))
+#+end_src
+
+** telega.el
+
+telegram client for emacs
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! telega)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! telega
+  :commands (telega)
+  :defer t
+  ;; :bind ("C-c t" . #'telega)
+  :init
+  (unless (display-graphic-p) (setq telega-use-images nil))
+  :hook
+  ('telega-root-mode . #'evil-emacs-state)
+  ('telega-chat-mode . #'evil-emacs-state)
+  ('telega-chat-mode . #'yas-minor-mode)
+  ('telega-chat-mode . (lambda ()
+                         (set-company-backend! 'telega-chat-mode
+                           (append '(telega-company-emoji
+                                     telega-company-username
+                                     telega-company-hashtag)
+                                   (when (telega-chat-bot-p telega-chatbuf--chat)
+                                     '(telega-company-botcmd))))
+                         (company-mode 1)))
+  ('telega-chat-pre-message . #'telega-msg-ignore-blocked-sender)
+  :config
+  (setq telega-proxies
+        (list '(:server "127.0.0.1" :port 1086 :enable t
+                        :type (:@type "proxyTypeSocks5"))))
+  (set-popup-rule! "^\\*Telega Root"
+    :side 'right :size 100 :quit nil :modeline t)
+  (set-popup-rule! "^◀\\(\\[\\|<\\|{\\).*\\(\\]\\|>\\|}\\)"
+    :side 'right :size 100 :quit nil :modeline t)
+  (telega-mode-line-mode 1))
 #+end_src
 
 * 基础设置
@@ -590,6 +641,56 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   (shell-command-on-region start end "pandoc -f markdown -t org" t t))
 #+end_src
 
+** org-transclusion
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-transclusion)
+#+end_src
+
+#+begin_src emacs-lisp
+;; (use-package! org-transclusion
+;;               :after org
+;;               :init
+;;               (map!
+;;                :map global-map "<f12>" #'org-transclusion-add
+;;                :leader
+;;                :prefix "n"
+;;                :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
+
+(use-package! org-transclusion
+  :after org
+  :init
+  (map!
+   :map org-mode-map
+   :localleader
+   :prefix ("u" . "transclUde")
+   :desc "Mode" "t" #'org-transclusion-mode
+   :desc "Deactivate" "D" #'org-transclusion-deactivate
+   :desc "Refresh" "f" #'org-transclusion-refresh
+
+   ;; Adding
+   :desc "Add" "a" #'org-transclusion-add
+   :desc "Add all" "A" #'org-transclusion-add-all
+   :desc "Add From link" "l" #'org-transclusion-make-from-link
+
+   ;; Removing
+   :desc "Remove all" "r" #'org-transclusion-remove
+   :desc "Remove all" "R" #'org-transclusion-remove-all
+
+   ;; Live sync
+   :desc "Start live sync" "s" #'org-transclusion-live-sync-start
+   :desc "Stop live sync" "S" #'org-transclusion-live-sync-exit
+
+   ;; Navigating
+   :desc "Open source" "o" #'org-transclusion-move-to-source
+
+   ;; Subtrees
+   :desc "Demote Subtree" "h" #'org-transclusion-demote-subtree
+   :desc "Promote Subtree" "l" #'org-transclusion-promote-subtree)
+  :config
+  (add-hook 'before-save-hook #'org-transclusion-refresh))
+#+end_src
+
 ** TODO 在 roam 链接上按 K lookup 打开临时预览窗口
 
 预览窗口是指按 q 退出（能回到上一层预览窗口就更好了）
@@ -630,76 +731,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   (org-supertag-setup))
 
 (setq org-supertag-sync-directories '("~/org")) ;; 注意这里不能直接写 org-directory，格式是不一样的，直接写会变成 126 error code
-#+end_src
-
-** org-transclusion :ARCHIVE:
-
-#+begin_src emacs-lisp :tangle no
-(package! org-transclusion)
-#+end_src
-
-#+begin_src emacs-lisp :tangle no
-;; (use-package! org-transclusion
-;;               :after org
-;;               :init
-;;               (map!
-;;                :map global-map "<f12>" #'org-transclusion-add
-;;                :leader
-;;                :prefix "n"
-;;                :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
-
-(use-package! org-transclusion
-  :after org
-  :init
-  (map!
-   :map (org-mode-map)
-   :localleader ;; 这里表示 <leader>m
-   :prefix ("u" . "transclUde")
-   :desc "Mode" "t" #'org-transclusion-mode
-   :desc "Deactivate" "D" #'org-transclusion-deactivate
-   :desc "Refresh" "f" #'org-transclusion-refresh
-
-   ;; Adding
-   :desc "Add" "a" #'org-transclusion-add
-   :desc "Add all" "A" #'org-transclusion-add-all
-   :desc "Add From link" "l" #'org-transclusion-make-from-link
-
-   ;; Removing
-   :desc "Remove all" "r" #'org-transclusion-remove
-   :desc "Remove all" "R" #'org-transclusion-remove-all
-
-   ;; Live sync
-   :desc "Start live sync" "s" #'org-transclusion-live-sync-start
-   :desc "Stop live sync" "S" #'org-transclusion-live-sync-exit
-
-   ;; Navigating
-   :desc "Open source" "o" #'org-transclusion-move-to-source
-
-   ;; Subtrees
-   :desc "Demote Subtree" "h" #'org-transclusion-demote-subtree
-   :desc "Promote Subtree" "l" #'org-transclusion-promote-subtree)
-  :config
-  (add-hook 'before-save-hook #'org-transclusion-refresh))
-#+end_src
-
-Whenever you reconfigure a package, make sure to wrap your config in an
-`after!' block, otherwise Doom's defaults may override your settings. E.g.
-
-  (after! PACKAGE
-    (setq x y))
-
-The exceptions to this rule:
-
-  - Setting file/directory variables (like `org-directory')
-  - Setting variables which explicitly tell you to set them before their
-    package is loaded (see 'C-h v VARIABLE' to look up their documentation).
-  - Setting doom variables (which start with 'doom-' or '+').
-
-#+begin_src emacs-lisp :tangle no
-(after! vetico
-(defun completion--regex-pinyin (str)
-  (orderless-regexp (pinyinlib-build-regexp-string str)))
-(add-to-list 'orderless-matching-styles 'completion--regex-pinyin))
 #+end_src
 
 ** valign 表格对齐 :ARCHIVE:
@@ -876,10 +907,6 @@ The exceptions to this rule:
         lsp-ui-sideline-diagnostic-max-lines 3  ; 每个诊断最多显示行数
         lsp-ui-sideline-diagnostic-max-line-length 100 ; 最大行长度
         lsp-ui-peek-enable t))
-#+end_src
-
-#+begin_src emacs-lisp :tangle packages.el
-(unpin! lsp-mode)
 #+end_src
 
 ** claude-code-ide.el

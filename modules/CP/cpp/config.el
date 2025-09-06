@@ -62,7 +62,7 @@
   ;; Test management submenu
   (map! :localleader
         :map c++-mode-map
-        :prefix ("c t" . "test")
+        :prefix ("t" . "test")
         "t" #'cp-cpp-toggle-input-mode
         "s" #'cp-cpp-select-test-case
         "n" #'cp-cpp-create-test-case
@@ -72,7 +72,7 @@
   ;; Cache management submenu
   (map! :localleader
         :map c++-mode-map
-        :prefix ("c x" . "cache")
+        :prefix ("x" . "cache")
         "c" #'cp-cpp-clear-compile-cache
         "i" #'cp-cpp-show-cache-info)
 

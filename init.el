@@ -19,7 +19,7 @@
 ;; (setq evil-disable-insert-state-bindings t)
 
 (doom! :CP
-	   cpp
+       cpp
 
        :input
        ;;bidi              ; (tfel ot) thgir etirw uoy gnipleh
