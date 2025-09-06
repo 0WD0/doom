@@ -328,6 +328,47 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       "b" #'my/open-roam-refs)
 #+end_src
 
+
+*** 算法竞赛模板导出工具
+
+算法模板导出配置
+使用主模板文件的简洁方案
+
+#+begin_src emacs-lisp
+;; 算法模板导出配置 - 直接加载方式
+(after! org
+  ;; 直接加载文件
+  (load! "lisp/org-algorithm-master")
+
+  ;; 自定义配置
+  (setq org-algorithm-master-file "~/org/algorithm-template-master.org")
+  (setq org-algorithm-master-output "~/Documents/algorithm-templates.pdf")
+
+  ;; 快捷键绑定
+  (map! :leader
+        (:prefix ("n" . "notes")
+         (:prefix ("i" . "icpc")
+          :desc "Export master template" "e" #'org-algorithm-export-master
+          :desc "Open master template" "m" #'org-algorithm-open-master
+          :desc "Add transclude directive" "i" #'org-algorithm-add-transclude
+          :desc "Add subtree transclude" "s" #'org-algorithm-add-transclude-subtree)))
+
+  ;; 在 org-mode 中添加快捷键
+  (map! :localleader
+        :map org-mode-map
+        (:prefix ("e" . "export")
+         :desc "Export algorithm master" "a" #'org-algorithm-export-master)))
+
+;; 添加算法模板的 org-capture 模板
+(after! org-capture
+  (add-to-list 'org-capture-templates
+               '("a" "Algorithm Template" plain
+                 (file+headline "~/org/roam/algorithms.org" "New Algorithm")
+                 "* %?\n:PROPERTIES:\n:ID: %(org-id-new)\n:END:\n\n** 描述\n\n** 实现\n#+begin_src cpp\n\n#+end_src\n\n** 复杂度\n- 时间: \n- 空间: \n\n** 模板题目\n\n"
+                 :unnarrowed t)))
+#+end_src
+
+
 ** TODO 自动为 =:chat:= 标签添加 folded VISIBILITY
 
 还未能正常工作
