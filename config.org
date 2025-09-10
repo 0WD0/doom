@@ -129,39 +129,46 @@ epub 支持
 telegram client for emacs
 
 #+begin_src emacs-lisp :tangle packages.el
+;; (package! company)
 (package! telega)
 #+end_src
 
 #+begin_src emacs-lisp
+(setq! telega-server-libs-prefix "/usr")
 (use-package! telega
   :commands (telega)
   :defer t
-  ;; :bind ("C-c t" . #'telega)
   :init
   (unless (display-graphic-p) (setq telega-use-images nil))
-  :hook
-  ('telega-root-mode . #'evil-emacs-state)
-  ('telega-chat-mode . #'evil-emacs-state)
-  ('telega-chat-mode . #'yas-minor-mode)
-  ('telega-chat-mode . (lambda ()
-                         (set-company-backend! 'telega-chat-mode
-                           (append '(telega-company-emoji
-                                     telega-company-username
-                                     telega-company-hashtag)
-                                   (when (telega-chat-bot-p telega-chatbuf--chat)
-                                     '(telega-company-botcmd))))
-                         (company-mode 1)))
-  ('telega-chat-pre-message . #'telega-msg-ignore-blocked-sender)
   :config
-  (setq telega-proxies
-        (list '(:server "127.0.0.1" :port 1086 :enable t
-                        :type (:@type "proxyTypeSocks5"))))
+  (define-key global-map (kbd "C-c t") telega-prefix-map)
+  (map! :map org-mode-map
+        :localleader
+        :prefix ("m" . "org-roam")
+        "b" #'my/open-roam-refs)
+  ;; (setq telega-proxies
+  ;;       (list '(:server "127.0.0.1" :port 1086 :enable t
+  ;;               :type (:@type "proxyTypeSocks5"))))
   (set-popup-rule! "^\\*Telega Root"
     :side 'right :size 100 :quit nil :modeline t)
   (set-popup-rule! "^◀\\(\\[\\|<\\|{\\).*\\(\\]\\|>\\|}\\)"
     :side 'right :size 100 :quit nil :modeline t)
   (telega-mode-line-mode 1))
 #+end_src
+
+** IRC config
+
+#+begin_src emacs-lisp :tangle no
+(setq! circe-network-options
+      '(("Libera Chat"
+         :tls t
+         :nick "oWDo"
+         :sasl-username "my-nick"
+         :sasl-password "my-password"
+         :channels ("#emacs-circe")
+         )))
+#+end_src
+
 
 * 基础设置
 
@@ -225,7 +232,9 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 
 * UI
 
-** my smooth-scroll
+** neoscoll
+
+我自己写的平滑滚动插件
 
 #+begin_src emacs-lisp
 (setq! neoscroll-line-step 4
@@ -752,17 +761,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 * Input Method & 中文支持
 
-** 输入法切换快捷键
-
-将 `toggle-input-method` 从默认的 `C-\` 改为 `C-TAB`，减少右手负担
-#+begin_src emacs-lisp
-(map! [C-tab] #'toggle-input-method)
-#+end_src
-
-但是在一些特殊情况下这个快捷键会已经被占用，有点难受
-比如说 org-roam-find 的 minibuffer 里
-调用的是 [[help:file-cache-minibuffer-complete]]
-
 ** rime config
 
 #+begin_src emacs-lisp
@@ -773,7 +771,20 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 ** DONE vertico 拼音搜索集成
 
-已经在 rime module 里实现了
+经在 rime module 里实现了
+
+** 输入法切换快捷键 :ARCHIVE:
+
+将 `toggle-input-method` 从默认的 `C-\` 改为 `C-TAB`，减少右手负担
+#+begin_src emacs-lisp :tangle no
+(map! [C-tab] #'toggle-input-method)
+#+end_src
+
+但是在一些特殊情况下这个快捷键会已经被占用，有点难受
+比如说 org-roam-find 的 minibuffer 里
+调用的是 [[help:file-cache-minibuffer-complete]]
+
+现在换用 charybdis 键盘之后 \ 离小拇指的距离变近了，就不需要这个配置了
 
 * evil 相关
 

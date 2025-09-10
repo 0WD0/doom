@@ -27,7 +27,8 @@
   :hook (text-mode . pangu-spacing-mode)
   :config
   ;; Always insert `real' space in org-mode.
-  (setq-hook! 'org-mode-hook pangu-spacing-real-insert-separtor t))
+  ;; (setq-hook! 'org-mode-hook pangu-spacing-real-insert-separtor t)
+  )
 
 (use-package! evil-pinyin
   :when (modulep! :editor evil +everywhere)
