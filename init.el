@@ -51,7 +51,7 @@
        ophints             ; highlight the region an operation acts on
        (popup +defaults)   ; tame sudden yet inevitable temporary windows
        ;; (smooth-scroll +interpolate)    ; So smooth you won't believe it's not butter
-       neoscroll           ; my smooth-scroll module
+       ;; neoscroll           ; my smooth-scroll module
        ;; tabs             ; a tab bar for Emacs
        (treemacs +lsp)     ; a project drawer, like neotree but cooler
        unicode             ; extended unicode support for various languages
@@ -68,7 +68,7 @@
        (format +lsp)  ; automated prettiness
        ;;god               ; run Emacs commands without modifier keys
        ;;lispy             ; vim for lisp, for people who don't like vim
-       ;;multiple-cursors  ; editing in many places at once
+       multiple-cursors  ; editing in many places at once
        ;;objed             ; text object editing for the innocent
        ;;parinfer          ; turn lisp into python, sort of
        rotate-text         ; cycle region at point between text candidates
