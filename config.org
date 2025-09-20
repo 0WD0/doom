@@ -657,6 +657,9 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+end_src
 
 #+begin_src emacs-lisp
+(with-eval-after-load 'org-transclusion
+  (add-to-list 'org-transclusion-extensions 'org-transclusion-indent-mode)
+  (require 'org-transclusion-indent-mode))
 ;; (use-package! org-transclusion
 ;;               :after org
 ;;               :init
@@ -665,6 +668,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 ;;                :leader
 ;;                :prefix "n"
 ;;                :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
+
 
 (use-package! org-transclusion
   :after org
@@ -698,6 +702,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
    :desc "Promote Subtree" "l" #'org-transclusion-promote-subtree)
   :config
   (add-hook 'before-save-hook #'org-transclusion-refresh))
+
 #+end_src
 
 ** TODO 在 roam 链接上按 K lookup 打开临时预览窗口
