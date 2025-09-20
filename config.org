@@ -81,6 +81,11 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 (setq tab-width 4)
 #+end_src
 
+** bibilo 模块设置
+#+begin_src emacs-lisp
+(setq! citar-bibliography '("/home/disk/Books/mybib.bib"))
+#+end_src
+
 ** indent-bars
 
 如果 =indent-bars-starting-column= 为 0，会在 org-mode 的 latex 片段的前面一个空格显示竖线！
