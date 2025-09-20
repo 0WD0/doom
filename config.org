@@ -249,6 +249,10 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 
 org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多配置选项来增强 org-mode 的功能。
 
+#+begin_src emacs-lisp :tangle packages.el
+(unpin! org-roam)
+#+end_src
+
 #+begin_src emacs-lisp
 (setq org-directory "~/org"
       org-roam-directory "~/org/roam"
