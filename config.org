@@ -570,7 +570,32 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (setq org-preview-latex-default-process 'dvisvgm)
 #+end_src
 
+*** Highlight
+
+[[https://stackoverflow.com/questions/69474043/emacs-org-mode-background-color-of-latex-fragments-with-org-highlight-latex-a][Emacs org mode: background color of latex fragments (with `org-highlight-latex-and-related`) : which variable to change?]]
+
+单独设置行内 LaTeX 块的背景颜色
+
+#+begin_src emacs-lisp
+(after! org-src
+  (add-to-list 'org-src-block-faces
+               '("latex" (:inherit default :extend t)))
+  )
+#+end_src
+
+*** evil-mode
+
+不知道有什么用
+#+begin_src emacs-lisp :tangle no
+(add-hook! 'org-src-mode-hook
+  (when (string= major-mode "latex-mode")
+    (evil-tex-mode 1)))
+#+end_src
+
 *** LaTeX 预览图像缩放
+:PROPERTIES:
+:CUSTOM_ID: latex-resize
+:END:
 
 [[https://karthinks.com/software/scaling-latex-previews-in-emacs/][Scaling Latex previews in Emacs | Karthinks]] 这篇文章和评论区帮了大忙了
 
@@ -621,31 +646,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 **** TODO 在标题处按 RET 时也会 toggle latex 预览，此时预览跳出的大小没有被正确设置！
 **** TODO 现在的设置没有随字体大小变化而变化，在字体调大之后预览会出现占不满行高的情况
 
-*** Highlight
-
-[[https://stackoverflow.com/questions/69474043/emacs-org-mode-background-color-of-latex-fragments-with-org-highlight-latex-a][Emacs org mode: background color of latex fragments (with `org-highlight-latex-and-related`) : which variable to change?]]
-
-单独设置行内 LaTeX 块的背景颜色
-
-#+begin_src emacs-lisp
-(after! org-src
-  (add-to-list 'org-src-block-faces
-               '("latex" (:inherit default :extend t)))
-  )
-#+end_src
-
-*** evil-mode
-
-不知道有什么用
-#+begin_src emacs-lisp :tangle no
-(add-hook! 'org-src-mode-hook
-  (when (string= major-mode "latex-mode")
-    (evil-tex-mode 1)))
-#+end_src
-
 ** typst 集成
 
-$b dot c$
+大小还需要和 latex 统一一下，现在基本的功能差不多是实现了
+还需要和 [[#latex-resize][LaTeX 预览图像缩放]] 配合一下，设置好统一的初始 svg 大小
 
 #+begin_src emacs-lisp
 ;;; org-typst-advice.el --- Add Typst support to org-mode formula rendering
@@ -678,12 +682,35 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
                (svg-file (concat typst-filebase ".svg"))
                ;; Extract content between $ delimiters
                (typst-content (replace-regexp-in-string
-                               "^\\s-*\\$\\s-*\\|\\s-*\\$\\s-*$" "" string)))
+                               "^\\s-*\\$\\s-*\\|\\s-*\\$\\s-*$" "" string))
+               ;; Get foreground and background colors from options
+               (fg-raw (plist-get options (if buffer :foreground :html-foreground)))
+               (bg-raw (plist-get options (if buffer :background :html-background)))
+               ;; Process colors - handle hex colors and special values
+               (fg (cond
+                    ((null fg-raw) nil)  ; No color specified
+                    ((eq fg-raw 'default) nil)  ; Use default
+                    ((stringp fg-raw) fg-raw)  ; Use as-is (supports hex like "#c6d0f5")
+                    (t nil)))
+               (bg (cond
+                    ((null bg-raw) nil)  ; No background specified
+                    ((eq bg-raw 'default) nil)  ; Use default
+                    ((string= bg-raw "Transparent") "Transparent")
+                    ((stringp bg-raw) bg-raw)  ; Use as-is (supports hex like "#303446")
+                    (t "Transparent"))))
           (condition-case err
               (progn
                 ;; Create Typst file with math content
                 (with-temp-file typst-file
-                  (insert "#set page(width: auto, height: auto, margin: 0pt, fill: none)\n")
+                  ;; Set page configuration
+                  (let ((page-fill (cond
+                                    ((or (null bg) (string= bg "Transparent")) "#none")
+                                    (t (format "rgb(\"%s\")" bg)))))
+                    (insert (format "#set page(width: auto, height: auto, margin: 0pt, fill: %s)\n" page-fill)))
+                  ;; Set text color if specified
+                  (when fg
+                    (insert (format "#set text(fill: rgb(\"%s\"))\n" fg)))
+                  ;; Insert the math content
                   (insert "$ " typst-content " $"))
 
                 ;; Try to compile with Typst
