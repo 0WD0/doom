@@ -259,7 +259,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+end_src
 
 #+begin_src emacs-lisp
-(setq org-directory "~/org"
+(setq! org-directory "~/org"
       org-roam-directory "~/org/roam"
       org-roam-completion-everywhere t
       org-agenda-files (directory-files-recursively "~/org/" "\\.org$")
@@ -641,6 +641,82 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (add-hook! 'org-src-mode-hook
   (when (string= major-mode "latex-mode")
     (evil-tex-mode 1)))
+#+end_src
+
+** typst 集成
+
+$b dot c$
+
+#+begin_src emacs-lisp
+;;; org-typst-advice.el --- Add Typst support to org-mode formula rendering
+
+;;; Commentary:
+;; This advice adds Typst compilation support to org-create-formula-image.
+;; For $ delimited formulas when processing-type is 'latex, it first tries
+;; to compile with Typst. If successful, uses the SVG output directly.
+;; If Typst compilation fails, falls back to the original LaTeX processing.
+
+;;; Code:
+
+(defun org-create-formula-image--typst-advice (orig-fun string tofile options buffer &optional processing-type)
+  "Advice for `org-create-formula-image' to add Typst support.
+
+When PROCESSING-TYPE is 'latex and STRING is $ delimited, first try
+compiling with Typst. If successful, return the SVG output directly.
+Otherwise, fall back to the original LaTeX processing.
+
+ORIG-FUN is the original function.
+STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments."
+  (let ((actual-processing-type (or processing-type org-preview-latex-default-process)))
+    ;; Check if we should try Typst: processing-type is latex and string is $ delimited
+    (if (and (eq actual-processing-type 'dvisvgm)
+             (numberp (string-match-p "^\\s-*\\$.*\\$\\s-*$" string)))
+        ;; Try Typst compilation first
+        (let* ((tmpdir temporary-file-directory)
+               (typst-filebase (make-temp-name (expand-file-name "orgtypst" tmpdir)))
+               (typst-file (concat typst-filebase ".typ"))
+               (svg-file (concat typst-filebase ".svg"))
+               ;; Extract content between $ delimiters
+               (typst-content (replace-regexp-in-string
+                               "^\\s-*\\$\\s-*\\|\\s-*\\$\\s-*$" "" string)))
+          (condition-case err
+              (progn
+                ;; Create Typst file with math content
+                (with-temp-file typst-file
+                  (insert "#set page(width: auto, height: auto, margin: 0pt, fill: none)\n")
+                  (insert "$ " typst-content " $"))
+
+                ;; Try to compile with Typst
+                (let ((exit-code (call-process "typst" nil nil nil
+                                               "compile" typst-file svg-file)))
+                  (if (and (eq exit-code 0) (file-exists-p svg-file))
+                      (progn
+                        ;; Typst compilation successful
+                        (copy-file svg-file tofile 'replace)
+                        ;; Clean up temporary files
+                        (when (file-exists-p typst-file) (delete-file typst-file))
+                        (when (file-exists-p svg-file) (delete-file svg-file))
+                        ;; Return the output file
+                        tofile)
+                    ;; Typst compilation failed, fall back to LaTeX
+                    (progn
+                      ;; Clean up any partial files
+                      (when (file-exists-p typst-file) (delete-file typst-file))
+                      (when (file-exists-p svg-file) (delete-file svg-file))
+                      ;; Call original function
+                      (funcall orig-fun string tofile options buffer processing-type)))))
+            (error
+             ;; Error in Typst processing, clean up and fall back to LaTeX
+             (when (file-exists-p typst-file) (delete-file typst-file))
+             (when (file-exists-p svg-file) (delete-file svg-file))
+             (funcall orig-fun string tofile options buffer processing-type))))
+      ;; Not a candidate for Typst, use original function
+      (funcall orig-fun string tofile options buffer processing-type))))
+
+;; Apply the advice
+
+(after! org
+  (advice-add 'org-create-formula-image :around #'org-create-formula-image--typst-advice))
 #+end_src
 
 ** org-passwords.el
