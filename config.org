@@ -651,6 +651,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 还需要和 [[#latex-resize][LaTeX 预览图像缩放]] 配合一下，设置好统一的初始 svg 大小
 
 #+begin_src emacs-lisp
+(defvar org-typst-scale-ratio 180)
 (defvar org-typst-debug nil
   "Enable debug messages for org Typst advice.")
 
@@ -669,13 +670,13 @@ ORIG-FUN is the original function.
 STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments."
   (org-typst--debug "Enter advice: processing-type=%S tofile=%S" processing-type tofile)
   (if (and (eq processing-type org-preview-latex-default-process)
-           (numberp (string-match-p "^\\s-*\\$.*\\$\\s-*$" string)))
+           (string-match-p "\\`\\s-*\\$" string)
+           (string-match-p "\\$\\s-*\\'" string))
       (let* ((tmpdir temporary-file-directory)
              (typst-filebase (make-temp-name (expand-file-name "orgtypst" tmpdir)))
              (typst-file (concat typst-filebase ".typ"))
              (svg-file (concat typst-filebase ".svg"))
-             (typst-content (replace-regexp-in-string
-                             "^\\s-*\\$\\s-*\\|\\s-*\\$\\s-*$" "" string))
+             (typst-content   (replace-regexp-in-string "\\`\\s-*\\$\\s-*\\|\\s-*\\$\\s-*\\'" "" string))
              (scale (plist-get options :scale))
              (fg-raw (plist-get options (if buffer :foreground :html-foreground)))
              (bg-raw (plist-get options (if buffer :background :html-background)))
@@ -702,7 +703,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
                   (insert (format "#set page(width: auto, height: auto, margin: 0pt, fill: %s)\n" page-fill)))
                 (when fg
                   (insert (format "#set text(fill: rgb(\"%s\"))\n" fg)))
-                (insert (format "#scale(x:%f*180%%,y:%f*180%%,reflow:true)[\n $ %s $ \n]" scale scale typst-content)))
+                (insert (format "#scale(x:%f*%d%%,y:%f*%d%%,reflow:true)[\n $ %s $ \n]" scale org-typst-scale-ratio scale org-typst-scale-ratio typst-content)))
               (org-typst--debug "Typst file written: %s (len=%d)" typst-file (nth 7 (file-attributes typst-file)))
               (with-current-buffer (get-buffer-create "*typst-formula*")
                 (let ((inhibit-read-only t))
