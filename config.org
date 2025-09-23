@@ -647,20 +647,16 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 **** TODO 现在的设置没有随字体大小变化而变化，在字体调大之后预览会出现占不满行高的情况
 
 ** typst 集成
-
 大小还需要和 latex 统一一下，现在基本的功能差不多是实现了
 还需要和 [[#latex-resize][LaTeX 预览图像缩放]] 配合一下，设置好统一的初始 svg 大小
 
 #+begin_src emacs-lisp
-;;; org-typst-advice.el --- Add Typst support to org-mode formula rendering
+(defvar org-typst-debug nil
+  "Enable debug messages for org Typst advice.")
 
-;;; Commentary:
-;; This advice adds Typst compilation support to org-create-formula-image.
-;; For $ delimited formulas when processing-type is 'latex, it first tries
-;; to compile with Typst. If successful, uses the SVG output directly.
-;; If Typst compilation fails, falls back to the original LaTeX processing.
-
-;;; Code:
+(defun org-typst--debug (fmt &rest args)
+  (when org-typst-debug
+    (apply #'message (concat "[org-typst] " fmt) args)))
 
 (defun org-create-formula-image--typst-advice (orig-fun string tofile options buffer &optional processing-type)
   "Advice for `org-create-formula-image' to add Typst support.
@@ -671,76 +667,76 @@ Otherwise, fall back to the original LaTeX processing.
 
 ORIG-FUN is the original function.
 STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments."
-  (let ((actual-processing-type (or processing-type org-preview-latex-default-process)))
-    ;; Check if we should try Typst: processing-type is latex and string is $ delimited
-    (if (and (eq actual-processing-type 'dvisvgm)
-             (numberp (string-match-p "^\\s-*\\$.*\\$\\s-*$" string)))
-        ;; Try Typst compilation first
-        (let* ((tmpdir temporary-file-directory)
-               (typst-filebase (make-temp-name (expand-file-name "orgtypst" tmpdir)))
-               (typst-file (concat typst-filebase ".typ"))
-               (svg-file (concat typst-filebase ".svg"))
-               ;; Extract content between $ delimiters
-               (typst-content (replace-regexp-in-string
-                               "^\\s-*\\$\\s-*\\|\\s-*\\$\\s-*$" "" string))
-               ;; Get foreground and background colors from options
-               (fg-raw (plist-get options (if buffer :foreground :html-foreground)))
-               (bg-raw (plist-get options (if buffer :background :html-background)))
-               ;; Process colors - handle hex colors and special values
-               (fg (cond
-                    ((null fg-raw) nil)  ; No color specified
-                    ((eq fg-raw 'default) nil)  ; Use default
-                    ((stringp fg-raw) fg-raw)  ; Use as-is (supports hex like "#c6d0f5")
-                    (t nil)))
-               (bg (cond
-                    ((null bg-raw) nil)  ; No background specified
-                    ((eq bg-raw 'default) nil)  ; Use default
-                    ((string= bg-raw "Transparent") "Transparent")
-                    ((stringp bg-raw) bg-raw)  ; Use as-is (supports hex like "#303446")
-                    (t "Transparent"))))
-          (condition-case err
-              (progn
-                ;; Create Typst file with math content
-                (with-temp-file typst-file
-                  ;; Set page configuration
-                  (let ((page-fill (cond
-                                    ((or (null bg) (string= bg "Transparent")) "#none")
-                                    (t (format "rgb(\"%s\")" bg)))))
-                    (insert (format "#set page(width: auto, height: auto, margin: 0pt, fill: %s)\n" page-fill)))
-                  ;; Set text color if specified
-                  (when fg
-                    (insert (format "#set text(fill: rgb(\"%s\"))\n" fg)))
-                  ;; Insert the math content
-                  (insert "$ " typst-content " $"))
-
-                ;; Try to compile with Typst
-                (let ((exit-code (call-process "typst" nil nil nil
-                                               "compile" typst-file svg-file)))
-                  (if (and (eq exit-code 0) (file-exists-p svg-file))
-                      (progn
-                        ;; Typst compilation successful
-                        (copy-file svg-file tofile 'replace)
-                        ;; Clean up temporary files
-                        (when (file-exists-p typst-file) (delete-file typst-file))
-                        (when (file-exists-p svg-file) (delete-file svg-file))
-                        ;; Return the output file
-                        tofile)
-                    ;; Typst compilation failed, fall back to LaTeX
+  (org-typst--debug "Enter advice: processing-type=%S tofile=%S" processing-type tofile)
+  (if (and (eq processing-type org-preview-latex-default-process)
+           (numberp (string-match-p "^\\s-*\\$.*\\$\\s-*$" string)))
+      (let* ((tmpdir temporary-file-directory)
+             (typst-filebase (make-temp-name (expand-file-name "orgtypst" tmpdir)))
+             (typst-file (concat typst-filebase ".typ"))
+             (svg-file (concat typst-filebase ".svg"))
+             (typst-content (replace-regexp-in-string
+                             "^\\s-*\\$\\s-*\\|\\s-*\\$\\s-*$" "" string))
+             (scale (plist-get options :scale))
+             (fg-raw (plist-get options (if buffer :foreground :html-foreground)))
+             (bg-raw (plist-get options (if buffer :background :html-background)))
+             (fg (cond
+                  ((null fg-raw) nil)
+                  ((eq fg-raw 'default) nil)
+                  ((stringp fg-raw) fg-raw)
+                  (t nil)))
+             (bg (cond
+                  ((null bg-raw) nil)
+                  ((eq bg-raw 'default) nil)
+                  ((string= bg-raw "Transparent") "Transparent")
+                  ((stringp bg-raw) bg-raw)
+                  (t "Transparent"))))
+        (org-typst--debug "Typst candidate: tmpdir=%S typst=%S svg=%S" tmpdir typst-file svg-file)
+        (org-typst--debug "Scale=%S fg=%S bg=%S" scale fg bg)
+        (condition-case err
+            (progn
+              (org-typst--debug "Writing Typst file...")
+              (with-temp-file typst-file
+                (let ((page-fill (cond
+                                  ((or (null bg) (string= bg "Transparent")) "#none")
+                                  (t (format "rgb(\"%s\")" bg)))))
+                  (insert (format "#set page(width: auto, height: auto, margin: 0pt, fill: %s)\n" page-fill)))
+                (when fg
+                  (insert (format "#set text(fill: rgb(\"%s\"))\n" fg)))
+                (insert (format "#scale(x:%f*180%%,y:%f*180%%,reflow:true)[\n $ %s $ \n]" scale scale typst-content)))
+              (org-typst--debug "Typst file written: %s (len=%d)" typst-file (nth 7 (file-attributes typst-file)))
+              (with-current-buffer (get-buffer-create "*typst-formula*")
+                (let ((inhibit-read-only t))
+                  (erase-buffer)
+                  (insert-file-contents typst-file)))
+              (org-typst--debug "Running typst compile...")
+              (let* ((compile-buf (get-buffer-create "*typst-compile*"))
+                     (exit-code (call-process "typst" nil compile-buf nil
+                                              "compile" typst-file svg-file)))
+                (org-typst--debug "Typst exit-code=%s svg-exists=%s" exit-code (file-exists-p svg-file))
+                (when org-typst-debug
+                  (org-typst--debug "Typst output:\n%s"
+                                    (with-current-buffer compile-buf
+                                      (buffer-substring-no-properties (point-min) (point-max)))))
+                (if (and (eq exit-code 0) (file-exists-p svg-file))
                     (progn
-                      ;; Clean up any partial files
+                      (org-typst--debug "Typst success; copying %s -> %s" svg-file tofile)
+                      (copy-file svg-file tofile 'replace)
                       (when (file-exists-p typst-file) (delete-file typst-file))
                       (when (file-exists-p svg-file) (delete-file svg-file))
-                      ;; Call original function
-                      (funcall orig-fun string tofile options buffer processing-type)))))
-            (error
-             ;; Error in Typst processing, clean up and fall back to LaTeX
-             (when (file-exists-p typst-file) (delete-file typst-file))
-             (when (file-exists-p svg-file) (delete-file svg-file))
-             (funcall orig-fun string tofile options buffer processing-type))))
-      ;; Not a candidate for Typst, use original function
-      (funcall orig-fun string tofile options buffer processing-type))))
-
-;; Apply the advice
+                      (org-typst--debug "Typst cleanup done; returning %s" tofile)
+                      tofile)
+                  (org-typst--debug "Typst failed; cleaning up and falling back to LaTeX")
+                  (when (file-exists-p typst-file) (delete-file typst-file))
+                  (when (file-exists-p svg-file) (delete-file svg-file))
+                  (funcall orig-fun string tofile options buffer processing-type))))
+          (error
+           (org-typst--debug "Error: %s" (error-message-string err))
+           (when (file-exists-p typst-file) (delete-file typst-file))
+           (when (file-exists-p svg-file) (delete-file svg-file))
+           (org-typst--debug "Fallback to LaTeX due to error")
+           (funcall orig-fun string tofile options buffer processing-type))))
+    (org-typst--debug "Not a Typst candidate; using original function")
+    (funcall orig-fun string tofile options buffer processing-type)))
 
 (after! org
   (advice-add 'org-create-formula-image :around #'org-create-formula-image--typst-advice))
