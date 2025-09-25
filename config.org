@@ -1046,8 +1046,6 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 ** lsp-mode config
 
-还没有让它正常工作
-
 #+begin_src emacs-lisp
 (after! lsp-mode
   (setq lsp-idle-delay 0.5
@@ -1058,22 +1056,31 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
         lsp-enable-text-document-color nil
         lsp-enable-on-type-formatting nil
         lsp-enable-snippet nil
-        lsp-enable-symbol-highlighting nil
+        lsp-enable-symbol-highlighting t        ; 启用符号高亮
         lsp-enable-links nil
-        lsp-lens-enable t  ;; 不起作用？
+        lsp-lens-enable t
         lsp-headerline-breadcrumb-enable t))
 
 ;; LSP UI settings for better performance
 (after! lsp-ui
-  (setq lsp-ui-doc-enable nil
+  (setq lsp-ui-doc-enable t                     ; 启用文档显示
+        lsp-ui-doc-delay 0.3                    ; 文档显示延迟
+        lsp-ui-doc-position 'at-point           ; 文档显示位置
+        lsp-ui-doc-show-with-cursor nil         ; 光标处显示文档
+        lsp-ui-doc-show-with-mouse t            ; 鼠标悬停显示文档
+
+        lsp-ui-sideline-enable t                ; 启用侧边栏
         lsp-ui-sideline-show-diagnostics t      ; 显示诊断信息
         lsp-ui-sideline-show-hover nil          ; 不显示hover信息
-        lsp-ui-sideline-show-code-actions nil   ; 显示代码操作
+        lsp-ui-sideline-show-code-actions t     ; 显示代码操作
         lsp-ui-sideline-update-mode 'line       ; 只在当前行更新
         lsp-ui-sideline-delay 0.1               ; 减少延迟
         lsp-ui-sideline-diagnostic-max-lines 3  ; 每个诊断最多显示行数
         lsp-ui-sideline-diagnostic-max-line-length 100 ; 最大行长度
-        lsp-ui-peek-enable t))
+
+        lsp-ui-peek-enable t                    ; 启用peek功能
+        lsp-ui-imenu-enable t)                  ; 启用imenu集成
+  )
 #+end_src
 
 ** claude-code-ide.el
