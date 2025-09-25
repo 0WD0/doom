@@ -83,8 +83,50 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 
 ** bibilo 模块设置
 #+begin_src emacs-lisp
-(setq! citar-bibliography '("/home/disk/Books/mybib.bib"))
+(setq! citar-bibliography '("/home/disk/Books/mybib.bib")
+       citar-open-entry-function 'citar-open-entry-in-zotero)
+
+(map!
+ :map org-mode-map
+ :localleader
+ (:prefix ("C" . "Citar")
+          (:prefix ("i" . "insert")
+           :desc "Insert reference" "r" #'citar-insert-reference
+           :desc "Insert citation" "c" #'citar-insert-citation
+           :desc "Insert bibtex" "b" #'citar-insert-bibtex
+           :desc "Insert keys" "k" #'citar-insert-keys
+           )
+          (:prefix ("o" . "open")
+           :desc "Open citar" "o" #'citar-open
+           :desc "Open files" "f" #'citar-open-files
+           :desc "Open notes" "n" #'citar-open-notes
+           :desc "Open note directly" "N" #'citar-open-note
+           :desc "Open links" "l" #'citar-open-links
+           :desc "Open entry in zotero" "e" #'citar-open-entry
+           )
+          ))
+
+;; 下面是 citar-map 里的默认绑定，我不知道这个 keymap 原来是用在哪里的
+
+;; RET citar-run-default-action
+;; a   citar-add-file-to-library
+;; r   citar-copy-reference
+
+;; R   citar-insert-reference
+;; b   citar-insert-bibtex
+;; c   citar-insert-citation
+;; k   citar-insert-keys
+;; o   citar-open
+;; e   citar-open-entry
+;; f   citar-open-files
+;; l   citar-open-links
+;; n   citar-open-notes
+
+;; 看源码看到的函数
+;; citar-open-note
+;;
 #+end_src
+
 
 ** indent-bars
 
