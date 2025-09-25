@@ -270,7 +270,20 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 ** Line numbers
 
 #+begin_src emacs-lisp
-(setq display-line-numbers-type t)
+(setq! display-line-numbers-type t)
+#+end_src
+
+** Line Wrap
+
+[[https://www.emacswiki.org/emacs/LineWrap][EmacsWiki: Line Wrap]]
+[[https://emacs-china.org/t/topic/2616/34][中英文混排时候的自动折行？ - #34，来自 ltylty - Emacs-general - Emacs China]]
+
+*** CJK 字符换行支持
+
+#+begin_src emacs-lisp
+(setq! word-wrap-by-category t)
+(modify-category-entry '(45 . 47) ?|)  ;; ASCII 45-47, i.e. ",-/"
+(modify-category-entry 58 ?|)          ;; ASCII 58, i.e. ":"
 #+end_src
 
 * UI
