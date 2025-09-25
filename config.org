@@ -930,6 +930,8 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 * Input Method & 中文支持
 
+我之前本来还想搞分词配置的，结果发现我完全没有这个的需求
+
 ** rime config
 
 #+begin_src emacs-lisp
@@ -1175,4 +1177,424 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 
 #+begin_src emacs-lisp
 (setq treesit-font-lock-level 4)
+#+end_src
+
+* Org-mode footnote hover preview :ATTACH:
+:PROPERTIES:
+:ID:       0908f342-a68a-4358-93da-70f99e7bc20c
+:END:
+
+只要窗口不要特别小就不会有问题
+
+后续想要改一下 line wrap 的适配
+
+#+begin_src emacs-lisp
+;;; Org-mode footnote hover preview - Enhanced implementation inspired by lsp-ui-doc
+(use-package! posframe :defer t)
+
+(defgroup org-footnote-preview nil
+  "Preview footnotes in org-mode."
+  :group 'org)
+
+(defcustom org-footnote-preview-use-childframe t
+  "Whether to use child-frame for footnote preview.
+If nil, use posframe instead."
+  :type 'boolean
+  :group 'org-footnote-preview)
+
+(defcustom org-footnote-preview-position 'at-point
+  "Position for footnote preview."
+  :type '(choice (const :tag "At Point" at-point)
+                 (const :tag "Bottom Left" bottom-left)
+                 (const :tag "Top Left" top-left))
+  :group 'org-footnote-preview)
+
+(defcustom org-footnote-preview-delay 0.1
+  "Delay in seconds before showing footnote preview."
+  :type 'number
+  :group 'org-footnote-preview)
+
+(defcustom org-footnote-preview-show-with-cursor t
+  "Show preview when cursor is on footnote reference."
+  :type 'boolean
+  :group 'org-footnote-preview)
+
+(defcustom org-footnote-preview-show-with-mouse t
+  "Show preview when mouse hovers over footnote reference."
+  :type 'boolean
+  :group 'org-footnote-preview)
+
+;; Internal variables
+(defvar org-footnote-preview-buffer "*org-footnote-preview*")
+(defvar org-footnote-preview--frame nil)
+(defvar org-footnote-preview--timer nil)
+(defvar org-footnote-preview--bounds nil)
+(defvar org-footnote-preview--last-point nil)
+(defvar org-footnote-preview--mouse-timer nil)
+(defvar org-footnote-preview--mouse-last-event nil)
+
+(defconst org-footnote-preview--ignore-commands
+  '(org-footnote-preview-hide
+    org-footnote-preview-at-point
+    org-footnote-preview--handle-mouse-movement
+    keyboard-quit
+    ignore
+    handle-switch-frame
+    mwheel-scroll)
+  "Commands to ignore for automatic preview.")
+
+(defface org-footnote-preview-background
+  `((t :background ,(face-attribute 'tooltip :background nil t)
+       :foreground ,(face-attribute 'tooltip :foreground nil t)))
+  "Background face for footnote preview."
+  :group 'org-footnote-preview)
+
+(defface org-footnote-preview-border
+  `((t :background ,(face-attribute 'shadow :foreground nil t)))
+  "Border face for footnote preview."
+  :group 'org-footnote-preview)
+
+(defun org-footnote-preview--get-definition (label)
+  "Get the footnote definition for LABEL."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward
+           (format "^\\[fn:%s\\]\\s-*\\(.*\\)" (regexp-quote label))
+           nil t)
+      (let ((start (match-beginning 1))
+            (end (save-excursion
+                   (if (re-search-forward "^\\[fn:" nil t)
+                       (line-beginning-position)
+                     (point-max)))))
+        (string-trim (buffer-substring-no-properties start end))))))
+
+(defun org-footnote-preview--get-definition-at-point ()
+  "Get the footnote definition for the footnote at point."
+  (when (org-in-regexp "\\[fn:\\([[:word:]_-]+\\)\\]")
+    (let ((label (match-string 1))
+          (bounds (cons (match-beginning 0) (match-end 0))))
+      (setq org-footnote-preview--bounds bounds)
+      (cons label (org-footnote-preview--get-definition label)))))
+
+(defun org-footnote-preview--create-child-frame (buffer)
+  "Create child frame for BUFFER."
+  (let* ((parent-frame (selected-frame))
+         (params `((parent-frame . ,parent-frame)
+                   (name . "")
+                   (no-accept-focus . t)
+                   (min-width . 0)
+                   (min-height . 0)
+                   (border-width . 2)
+                   (internal-border-width . 1)
+                   (vertical-scroll-bars . nil)
+                   (horizontal-scroll-bars . nil)
+                   (left-fringe . 0)
+                   (right-fringe . 0)
+                   (menu-bar-lines . 0)
+                   (tool-bar-lines . 0)
+                   (tab-bar-lines . 0)
+                   (mode-line-format . nil)  ; 隐藏 modeline
+                   (header-line-format . nil)  ; 隐藏 header-line
+                   (line-spacing . 0)
+                   (unsplittable . t)
+                   (no-other-frame . t)
+                   (undecorated . t)
+                   (cursor-type . nil)
+                   (no-special-glyphs . t)
+                   (desktop-dont-save . t)
+                   ;; 设置精确的窗口边距
+                   (left-margin-width . 0)
+                   (right-margin-width . 0)
+                   (scroll-margin . 0)
+                   (background-color . ,(face-attribute 'org-footnote-preview-background :background nil t))
+                   (foreground-color . ,(face-attribute 'org-footnote-preview-background :foreground nil t))))
+         (window (display-buffer-in-child-frame buffer `((child-frame-parameters . ,params))))
+         (frame (window-frame window)))
+    (set-face-background 'internal-border
+                         (face-attribute 'org-footnote-preview-border :background nil t)
+                         frame)
+    (when (facep 'child-frame-border)
+      (set-face-background 'child-frame-border
+                           (face-attribute 'org-footnote-preview-border :background nil t)
+                           frame))
+    (set-window-dedicated-p window t)
+    ;; 完全隐藏各种格式行
+    (with-current-buffer buffer
+      (setq-local mode-line-format nil)
+      (setq-local header-line-format nil)
+      (setq-local tab-line-format nil)
+      ;; 设置窗口边距为 0
+      (setq-local left-margin-width 0)
+      (setq-local right-margin-width 0)
+      (setq-local scroll-margin 0)
+      (setq-local scroll-conservatively 0))
+    ;; 确保窗口边距设置生效
+    (with-selected-window window
+      (set-window-margins window 0 0)
+      (set-window-scroll-bars window nil nil))
+    frame))
+
+(defun org-footnote-preview--calculate-position (frame)
+  "Calculate position for FRAME exactly like lsp-ui-doc's at-point implementation."
+  (let* ((edges (window-edges nil t nil t))
+         (window-left (nth 0 edges))
+         (window-top (nth 1 edges))
+         (char-width (frame-char-width))
+         (char-height (frame-char-height))
+         (frame-width (frame-pixel-width frame))
+         (frame-height (frame-pixel-height frame))
+         ;; Get symbol position exactly like lsp-ui-doc
+         (symbol-pos (or (and org-footnote-preview--bounds
+                              (posn-x-y (posn-at-point (car org-footnote-preview--bounds))))
+                         (posn-x-y (posn-at-point))))
+         (x (car symbol-pos))
+         (y (cdr symbol-pos))
+         ;; Calculate frame position relative to screen (like lsp-ui-doc)
+         ;; Key: offset by 2 char-widths to the right like lsp-ui-doc
+         (frame-relative-symbol-x (+ window-left x (* char-width 2)))
+         (frame-relative-symbol-y (+ window-top y))
+         ;; Horizontal boundary checking (exactly like lsp-ui-doc)
+         (frame-x (if (<= (frame-outer-width) (+ frame-relative-symbol-x frame-width))
+                      ;; Would exceed right boundary, shift left
+                      (- x (- (+ frame-relative-symbol-x frame-width)
+                              (frame-outer-width)))
+                    ;; Within bounds, use original position with 2-char offset
+                    (+ x (* char-width 2))))
+         ;; Vertical positioning strategy (exactly like lsp-ui-doc)
+         (frame-y (if (<= frame-height frame-relative-symbol-y)
+                      ;; Enough space above, show above the symbol
+                      (- y frame-height)
+                    ;; Not enough space above, show below
+                    (+ y char-height))))
+    ;; Return absolute screen coordinates
+    (cons (+ window-left frame-x) (+ window-top frame-y))))
+
+(defun org-footnote-preview--position-frame (frame)
+  "Position FRAME appropriately."
+  (when (frame-live-p frame)
+    (let* ((window (frame-root-window frame))
+           (text-size (window-text-pixel-size window nil nil 1000 1000 t))
+           ;; 不需要额外的边距，因为我们已经隐藏了 modeline
+           (width (+ (car text-size) (* (frame-char-width frame) 1)))
+           ;; 精确的高度，不包含 modeline 空间
+           (height (cdr text-size))
+           (position (org-footnote-preview--calculate-position frame)))
+      ;; 确保最小尺寸
+      (setq width (max width (* (frame-char-width frame) 20)))
+      (setq height (max height (frame-char-height frame)))
+      ;; 设置精确的 frame 大小和位置
+      (set-frame-size frame width height t)
+      (set-frame-position frame (car position) (cdr position))
+      (make-frame-visible frame)
+      ;; 确保窗口完全适配内容
+      (with-selected-frame frame
+        (fit-window-to-buffer window height height width width)))))
+
+(defun org-footnote-preview--display-childframe (content)
+  "Display CONTENT using child-frame."
+  (let ((buffer (get-buffer-create org-footnote-preview-buffer)))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert content)
+      (org-mode)
+      (goto-char (point-min))
+      ;; 完全隐藏 modeline 和相关元素
+      (setq-local mode-line-format nil)
+      (setq-local header-line-format nil)
+      (setq-local tab-line-format nil)
+      ;; 禁用行号显示
+      (setq-local display-line-numbers nil)
+      (setq-local display-line-numbers-mode nil)
+      (when (fboundp 'display-line-numbers-mode)
+        (display-line-numbers-mode -1))
+      ;; 移除多余的空行和空白
+      (setq-local cursor-type nil)
+      (setq-local show-trailing-whitespace nil)
+      ;; 确保没有多余的空行
+      (goto-char (point-max))
+      (while (and (not (bobp)) (looking-back "\n\n+" nil))
+        (delete-char -1))
+      (when (fboundp 'org-modern-mode)
+        (org-modern-mode 1)))
+    (if (and org-footnote-preview--frame
+             (frame-live-p org-footnote-preview--frame))
+        (with-selected-window (frame-root-window org-footnote-preview--frame)
+          (switch-to-buffer buffer))
+      (setq org-footnote-preview--frame (org-footnote-preview--create-child-frame buffer)))
+    (org-footnote-preview--position-frame org-footnote-preview--frame)))
+
+(defun org-footnote-preview--display-posframe (content)
+  "Display CONTENT using posframe."
+  (with-current-buffer (get-buffer-create org-footnote-preview-buffer)
+    (erase-buffer)
+    (insert content)
+    (org-mode)
+    (goto-char (point-min))
+    ;; 禁用行号显示
+    (setq-local display-line-numbers nil)
+    (setq-local display-line-numbers-mode nil)
+    (when (fboundp 'display-line-numbers-mode)
+      (display-line-numbers-mode -1)))
+  (posframe-show
+   org-footnote-preview-buffer
+   :position (point)
+   :poshandler (pcase org-footnote-preview-position
+                 ('bottom-left 'posframe-poshandler-point-bottom-left-corner)
+                 ('top-left 'posframe-poshandler-point-top-left-corner)
+                 (_ 'posframe-poshandler-point-bottom-left-corner))
+   :border-width 2
+   :border-color (face-attribute 'org-footnote-preview-border :background nil t)
+   :background-color (face-attribute 'org-footnote-preview-background :background nil t)
+   :foreground-color (face-attribute 'org-footnote-preview-background :foreground nil t)
+   :min-width 40
+   :max-width 80
+   :timeout 10))
+
+(defun org-footnote-preview--display (content)
+  "Display CONTENT in preview."
+  (if (and org-footnote-preview-use-childframe
+           (fboundp 'display-buffer-in-child-frame)
+           (display-graphic-p))
+      (org-footnote-preview--display-childframe content)
+    (org-footnote-preview--display-posframe content)))
+
+(defun org-footnote-preview-at-point ()
+  "Show footnote definition at point."
+  (interactive)
+  (let ((definition-info (org-footnote-preview--get-definition-at-point)))
+    (if definition-info
+        (let ((content (cdr definition-info)))
+          (if (and content (not (string-empty-p content)))
+              (org-footnote-preview--display content)
+            (message "Footnote definition is empty")))
+      (message "No footnote at point"))))
+
+(defun org-footnote-preview-hide ()
+  "Hide footnote preview."
+  (interactive)
+  (when org-footnote-preview--timer
+    (cancel-timer org-footnote-preview--timer)
+    (setq org-footnote-preview--timer nil))
+  (if org-footnote-preview-use-childframe
+      (when (and org-footnote-preview--frame
+                 (frame-live-p org-footnote-preview--frame))
+        (delete-frame org-footnote-preview--frame)
+        (setq org-footnote-preview--frame nil))
+    (posframe-hide org-footnote-preview-buffer))
+  (setq org-footnote-preview--bounds nil
+        org-footnote-preview--last-point nil))
+
+(defun org-footnote-preview--should-show-p ()
+  "Return t if we should show preview."
+  (and org-footnote-preview-show-with-cursor
+       (not (minibufferp))
+       (not (memq this-command org-footnote-preview--ignore-commands))
+       (org-in-regexp "\\[fn:\\([[:word:]_-]+\\)\\]")))
+
+(defun org-footnote-preview--auto-show ()
+  "Automatically show preview if appropriate."
+  (let ((current-point (point)))
+    ;; 如果光标在脚注引用上，显示预览
+    (if (org-in-regexp "\\[fn:\\([[:word:]_-]+\\)\\]")
+        (let ((definition-info (org-footnote-preview--get-definition-at-point)))
+          (when (and definition-info (cdr definition-info)
+                     (not (string-empty-p (cdr definition-info))))
+            ;; 只有在位置改变时才重新显示，避免闪烁
+            (unless (equal current-point org-footnote-preview--last-point)
+              (org-footnote-preview--display (cdr definition-info))
+              (setq org-footnote-preview--last-point current-point))))
+      ;; 不在脚注引用上，隐藏预览
+      (when org-footnote-preview--last-point
+        (org-footnote-preview-hide)
+        (setq org-footnote-preview--last-point nil)))))
+
+(defun org-footnote-preview--make-request ()
+  "Make request for footnote preview."
+  ;; Setup mouse tracking like lsp-ui-doc
+  (and (not track-mouse) org-footnote-preview-show-with-mouse (setq-local track-mouse t))
+
+  (when (and org-footnote-preview-show-with-cursor
+             (not (minibufferp))
+             (not (memq this-command org-footnote-preview--ignore-commands)))
+    (when org-footnote-preview--timer
+      (cancel-timer org-footnote-preview--timer))
+    ;; 更短的延迟，更快响应
+    (setq org-footnote-preview--timer
+          (run-with-idle-timer 0.1 nil #'org-footnote-preview--auto-show))))
+
+;; Mouse support functions - 基于 lsp-ui-doc 的实现
+(defun org-footnote-preview--handle-mouse-movement (event)
+  "Handle mouse movement EVENT for footnote preview."
+  (interactive "e")
+  (when org-footnote-preview-show-with-mouse
+    (when org-footnote-preview--mouse-timer
+      (cancel-timer org-footnote-preview--mouse-timer))
+    (let* ((e (cadr event))
+           (point (posn-point e))
+           (same-win (eq (selected-window) (posn-window e))))
+      ;; Hide if mouse moved away from footnote
+      (and org-footnote-preview--bounds
+           point
+           (or (< point (car org-footnote-preview--bounds))
+               (> point (cdr org-footnote-preview--bounds))
+               (not same-win))
+           (org-footnote-preview-hide))
+      ;; Show if mouse is on footnote in same window
+      (when (and same-win point)
+        (setq org-footnote-preview--mouse-last-event point
+              org-footnote-preview--mouse-timer
+              (run-with-idle-timer 0.2 nil #'org-footnote-preview--mouse-display))))))
+
+(defun org-footnote-preview--mouse-display ()
+  "Display footnote preview at mouse position."
+  (when (and org-footnote-preview--mouse-last-event
+             org-footnote-preview-show-with-mouse)
+    (save-excursion
+      (goto-char org-footnote-preview--mouse-last-event)
+      (when (org-in-regexp "\\[fn:\\([[:word:]_-]+\\)\\]")
+        (let ((definition-info (org-footnote-preview--get-definition-at-point)))
+          (when (and definition-info (cdr definition-info)
+                     (not (string-empty-p (cdr definition-info))))
+            (org-footnote-preview--display (cdr definition-info))))))))
+
+(defun org-footnote-preview--setup-mouse ()
+  "Setup mouse tracking for footnote preview."
+  (when org-footnote-preview-show-with-mouse
+    ;; Use keymap binding like lsp-ui-doc, not hook
+    (local-set-key (kbd "<mouse-movement>") #'org-footnote-preview--handle-mouse-movement)
+    (setq-local track-mouse t)))
+
+;; Enhanced keybindings
+(map! :map org-mode-map
+      :desc "Preview footnote" "C-c f p" #'org-footnote-preview-at-point
+      :desc "Hide footnote preview" "C-c f h" #'org-footnote-preview-hide
+      :desc "Preview footnote at point" "C-c C-d" #'org-footnote-preview-at-point)
+
+;; Auto-preview mode
+(define-minor-mode org-footnote-preview-mode
+  "Minor mode for automatic footnote preview."
+  :lighter " FnPrev"
+  :group 'org-footnote-preview
+  (if org-footnote-preview-mode
+      (progn
+        (add-hook 'post-command-hook #'org-footnote-preview--make-request nil t)
+        (add-hook 'window-scroll-functions
+                  (lambda (&rest _) (org-footnote-preview-hide)) nil t)
+        (org-footnote-preview--setup-mouse))
+    (remove-hook 'post-command-hook #'org-footnote-preview--make-request t)
+    (remove-hook 'window-scroll-functions
+                 (lambda (&rest _) (org-footnote-preview-hide)) t)
+    ;; Clean up mouse binding
+    (when org-footnote-preview-show-with-mouse
+      (local-unset-key (kbd "<mouse-movement>")))
+    (when org-footnote-preview--timer
+      (cancel-timer org-footnote-preview--timer)
+      (setq org-footnote-preview--timer nil))
+    (when org-footnote-preview--mouse-timer
+      (cancel-timer org-footnote-preview--mouse-timer)
+      (setq org-footnote-preview--mouse-timer nil))
+    (org-footnote-preview-hide)))
+
+;; Auto-enable in org-mode
+(add-hook 'org-mode-hook #'org-footnote-preview-mode)
 #+end_src
