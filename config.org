@@ -147,10 +147,6 @@ telegram client for emacs
   (unless (display-graphic-p) (setq telega-use-images nil))
   :config
   (define-key global-map (kbd "C-c t") telega-prefix-map)
-  (map! :map org-mode-map
-        :localleader
-        :prefix ("m" . "org-roam")
-        "b" #'my/open-roam-refs)
   ;; (setq telega-proxies
   ;;       (list '(:server "127.0.0.1" :port 1086 :enable t
   ;;               :type (:@type "proxyTypeSocks5"))))
@@ -417,11 +413,11 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   ;; 快捷键绑定
   (map! :leader
         (:prefix ("n" . "notes")
-         (:prefix ("i" . "icpc")
-          :desc "Export master template" "e" #'org-algorithm-export-master
-          :desc "Open master template" "m" #'org-algorithm-open-master
-          :desc "Add transclude directive" "i" #'org-algorithm-add-transclude
-          :desc "Add subtree transclude" "s" #'org-algorithm-add-transclude-subtree)))
+                 (:prefix ("i" . "icpc")
+                  :desc "Export master template" "e" #'org-algorithm-export-master
+                  :desc "Open master template" "m" #'org-algorithm-open-master
+                  :desc "Add transclude directive" "i" #'org-algorithm-add-transclude
+                  :desc "Add subtree transclude" "s" #'org-algorithm-add-transclude-subtree)))
 
   ;; 在 org-mode 中添加快捷键
   (map! :localleader
@@ -647,8 +643,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 **** TODO 现在的设置没有随字体大小变化而变化，在字体调大之后预览会出现占不满行高的情况
 
 ** typst 集成
-大小还需要和 latex 统一一下，现在基本的功能差不多是实现了
-还需要和 [[#latex-resize][LaTeX 预览图像缩放]] 配合一下，设置好统一的初始 svg 大小
 
 #+begin_src emacs-lisp
 (defvar org-typst-scale-ratio 180)
@@ -700,8 +694,9 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
               (with-temp-file typst-file
                 (let ((page-fill (cond
                                   ((or (null bg) (string= bg "Transparent")) "#none")
-                                  (t (format "rgb(\"%s\")" bg)))))
-                  (insert (format "#set page(width: auto, height: auto, margin: 0pt, fill: %s)\n" page-fill)))
+                                  (t (format "rgb(\"%s\")" bg))))
+                      (margin (if normal-type 1 0)))
+                  (insert (format "#set page(width: auto, height: auto, margin: %dpt, fill: %s)\n" margin page-fill)))
                 (when fg
                   (insert (format "#set text(fill: rgb(\"%s\"))\n" fg)))
                 (let ((real-content (if normal-type
