@@ -106,6 +106,10 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
            )
           ))
 
+(map! :map org-mode-map
+      :localleader
+      :prefix ("m" . "org-roam")
+      "c" #'citar-org-roam-open-current-refs)
 ;; 下面是 citar-map 里的默认绑定，我不知道这个 keymap 原来是用在哪里的
 
 ;; RET citar-run-default-action
@@ -212,6 +216,12 @@ telegram client for emacs
          )))
 #+end_src
 
+** solar.el
+
+#+begin_src emacs-lisp
+(setq! calendar-latitude 30.29365
+       calendar-longitude 120.16142)
+#+end_src
 
 * 基础设置
 
@@ -433,6 +443,8 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 竟然这么好实现
 
+之后可以和 citar 集成一下
+
 #+begin_src emacs-lisp
 (defun my/open-roam-refs ()
   "Open one of the ROAM_REFS links for current entry."
@@ -490,9 +502,11 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+end_src
 
 
-** TODO 自动为 =:chat:= 标签添加 folded VISIBILITY
+** HOLD 自动为 =:chat:= 标签添加 folded VISIBILITY
 
 还未能正常工作
+
+说实话可以用 =:ARCHIVE:= 标签平替
 
 #+begin_src emacs-lisp :tangle no
 (after! org
@@ -1187,6 +1201,8 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 只要窗口不要特别小就不会有问题
 
 后续想要改一下 line wrap 的适配
+
+在 footnote 那边的链接该显示原文的相关内容，或者不搞预览，暂时不管
 
 #+begin_src emacs-lisp
 ;;; Org-mode footnote hover preview - Enhanced implementation inspired by lsp-ui-doc
