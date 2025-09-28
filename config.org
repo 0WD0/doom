@@ -320,6 +320,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+end_src
 
 #+begin_src emacs-lisp
+(add-hook 'org-mode-hook (lambda () (setq-local tab-width 8)))
 (setq! org-directory "~/org"
       org-roam-directory "~/org/roam"
       org-roam-completion-everywhere t
@@ -464,43 +465,208 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 *** 算法竞赛模板导出工具
 
-算法模板导出配置
-使用主模板文件的简洁方案
+**** 关键tag
 
 #+begin_src emacs-lisp
-;; 算法模板导出配置 - 直接加载方式
-(after! org
-  ;; 直接加载文件
-  (load! "lisp/org-algorithm-master")
-
-  ;; 自定义配置
-  (setq org-algorithm-master-file "~/org/algorithm-template-master.org")
-  (setq org-algorithm-master-output "~/Documents/algorithm-templates.pdf")
-
-  ;; 快捷键绑定
-  (map! :leader
-        (:prefix ("n" . "notes")
-                 (:prefix ("i" . "icpc")
-                  :desc "Export master template" "e" #'org-algorithm-export-master
-                  :desc "Open master template" "m" #'org-algorithm-open-master
-                  :desc "Add transclude directive" "i" #'org-algorithm-add-transclude
-                  :desc "Add subtree transclude" "s" #'org-algorithm-add-transclude-subtree)))
-
-  ;; 在 org-mode 中添加快捷键
-  (map! :localleader
-        :map org-mode-map
-        (:prefix ("e" . "export")
-         :desc "Export algorithm master" "a" #'org-algorithm-export-master)))
-
-;; 添加算法模板的 org-capture 模板
-(after! org-capture
-  (add-to-list 'org-capture-templates
-               '("a" "Algorithm Template" plain
-                 (file+headline "~/org/roam/algorithms.org" "New Algorithm")
-                 "* %?\n:PROPERTIES:\n:ID: %(org-id-new)\n:END:\n\n** 描述\n\n** 实现\n#+begin_src cpp\n\n#+end_src\n\n** 复杂度\n- 时间: \n- 空间: \n\n** 模板题目\n\n"
-                 :unnarrowed t)))
+(defvar my/org-roam-export-tag nil)
+(defvar my/org-roam-export-tags '("CP" "CF" "contest"))
 #+end_src
 
+之后需要看看怎么扩展到多个 tag
+暂时先搞单个的实现
+
+**** 提取主节点
+我这其实和 [[id:8e646f0b-aa8e-470b-9dd9-d70b8693dd3c][lazyblorg]] 干了差不多的事情，但是它捕捉的是 blog 这个 tag
+然后让每个子树形成一篇博客，导出成 html
+我这里却是平铺导出成 latex 加上页码链接
+
+#+begin_src emacs-lisp
+(defun my/org-roam-nodes-with-tag (tag &optional inheritp)
+  "Return org-roam nodes where TAG is locally defined (non-inherited)."
+  ;; (require 'org-roam)
+  (let* ((rows (org-roam-db-query
+                [:select [nodes:file nodes:pos nodes:id]
+                 :from nodes
+                 :inner :join tags :on (= nodes:id tags:node_id)
+                 :where (= tags:tag $s1)]
+                tag))
+         (result '()))
+    (if inheritp
+        (dolist (row rows result)
+          (push (org-roam-node-from-id (nth 2 row)) result))
+      (dolist (row rows result)
+        (let ((file (nth 0 row))
+              (pos  (nth 1 row))
+              node)
+          (with-current-buffer (find-file-noselect file)
+            (save-excursion
+              (goto-char pos)
+              (setq node (org-roam-node-at-point t))
+              (setq local-tags
+                    (if (eq pos 1)
+                        org-file-tags
+                      (org-get-tags nil t)))
+              (when (member tag local-tags)
+                (push node result))))))
+      result)))
+#+end_src
+
+**** 拉入节点子树
+先通过 =my/org-roam-nodes-with-tag= 得到所有需要拉入的不重复的子树
+
+拉入的时候需要统一标题层级
+
+需要统一文件节点的形式
+
+需要借鉴 [[help:org-roam-refile]]
+其实并不复杂，实现好了
+
+#+begin_src emacs-lisp
+(defun my/org-roam-extract-subtree (node)
+  (let ((file (org-roam-node-file node))
+        (pos  (org-roam-node-point node)))
+    (with-temp-buffer
+      (org-mode)
+      (insert-file-contents file)
+      (goto-char pos)
+      (when (org-before-first-heading-p)
+        (org-roam-demote-entire-buffer))
+      (org-copy-subtree 1 nil t))))
+#+end_src
+
+然后可以用 [[help:org-paste-subtree]] 进行粘贴
+
+**** 重排序
+然后根据某些规则安排顺序
+可以从 org-roam 中直接导出这个 tag 的所有节点，来重新得到各个节点在这个文件中的锚点（大概可以通过查询 id 得到）
+
+**** 添加反向链接
+反向链接要需显示父标题链（文件标题+olp+节点标题）
+其实子树节点也可以显示一下副标题链？
+
+其实可以 join 一下同时查 id 和 title
+
+[[help:org-id-find-id-in-file]] 可以用这个函数来得到 id 位置
+应该很好用
+
+#+begin_src emacs-lisp :tangle no
+(defun my/org-roam-backlinks-of-id-old (id)
+  "Return list of (SRC-ID TITLE)."
+  (let* ((rows (org-roam-db-query
+                [:select [source]
+                 :from links
+                 :where (and (= dest $s1) (= type "id"))]
+                id))
+         res)
+    (dolist (row rows)
+      (let* ((id (car row))
+             (title (org-roam-node-title (org-roam-node-from-id id))))
+        (message "%s" id)
+        (push (list id title) res)))
+    (nreverse res)))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/org-roam-backlinks-of-id (id)
+  "Return list of (SRC-ID TITLE)."
+  (let* ((rows (org-roam-db-query
+                [:select [links:source]
+                 :from links
+                 :inner :join tags :on (= links:source tags:node_id)
+                 :where (and (= links:dest $s1) (= links:type "id") (= tags:tag $s2))]
+                id my/org-roam-export-tag))
+         res)
+    (dolist (row rows)
+      (let* ((id (car row))
+             (title (org-roam-node-title (org-roam-node-from-id id))))
+        (push (list id title) res)))
+    (nreverse res)))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/org-roam-append-to-node-end (id file content)
+  "在指定节点的末尾（而非文件末尾）追加内容"
+  (save-excursion
+    (goto-char (cdr (org-id-find-id-in-file id file)))
+    ;; 移动到节点内容的末尾，但在下一个同级标题之前
+    (goto-char (org-entry-end-position))
+    ;; 向前移动一个字符，确保在节点内容末尾
+    (backward-char 1)
+    (end-of-line)
+    (insert "\n" content)))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/org-insert-backlinks-section (id file)
+  (let ((bl (my/org-roam-backlinks-of-id id)))
+    (when bl
+      (let ((content "\n- Backlinks\n"))
+        (dolist (pair bl)
+          (setq content (concat content (format "  - [[id:%s][%s]]\n" (car pair) (cadr pair)))))
+        (message "Id: %s backlinks: %s" id content)
+        (my/org-roam-append-to-node-end id file content)))))
+#+end_src
+
+**** 导出页码
+最后支持一下页码导出功能
+应该就是用 \pageref{sec:chapter_one} 这样的东西
+但是，我怎么在导出前知道他生成的 lable ？ 能不能修改链接导出的方式？
+
+[[help:org-latex-link]] 理论上可以advice这个函数
+
+我不确定能不能拆成多个文件，ox-latex 似乎不支持这种功能
+
+**** 主要导出函数
+
+#+begin_src emacs-lisp
+;; -- org-roam: export top-tagged subtrees to PDF (headline hierarchy parent definition) --
+;; (require 'org)
+;; (require 'org-roam)
+;; (require 'org-element)
+;; (require 'seq)
+;; (require 'cl-lib)
+(setq! org-latex-pdf-process
+       '("latexmk -pdflatex=xelatex -pdf -interaction=nonstopmode -output-directory=%o %f"))
+
+(defun my/org-roam-export-top-tagged-subtrees-to-pdf (tag &optional outfile)
+  "Export all top-tagged org-roam headlines (by headline hierarchy) into a single PDF.
+Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
+  (interactive "sTag: ")
+  (org-roam-db-sync)
+
+  (setq my/org-roam-export-tag tag)
+  (let ((file-name (make-temp-file (format "roam-export-%s-" tag)))
+        (top-nodes (my/org-roam-nodes-with-tag tag))
+        (all-nodes (my/org-roam-nodes-with-tag tag t)))
+    (with-temp-file file-name
+      (org-mode)
+      ;; Export header: Chinese + hyperref + TOC + numbered headings
+      (insert "#+title: Roam Export\n")
+      (insert "#+options: toc:t num:t\n")
+      (insert "#+latex_header: \\usepackage[UTF8]{ctex}\n")
+      (insert "#+latex_compiler: xelatex\n\n")
+      (dolist (n top-nodes)
+          (my/org-roam-extract-subtree n)
+          (org-paste-subtree 2))
+
+      (write-file file-name)
+
+      (dolist (n all-nodes)
+        (let ((id (org-roam-node-id n)))
+          (my/org-insert-backlinks-section id file-name)))
+
+      ;; Export to PDF
+      (let ((outfile (or outfile (expand-file-name (format "roam-%s.pdf" tag) default-directory))))
+        (org-latex-export-to-pdf)
+        (message "Exported PDF for tag %s. Buffer: %s" tag (buffer-name))))))
+#+end_src
+
+**** 快捷键绑定
+#+begin_src emacs-lisp
+(map! :leader
+      :desc "Roam export top-tagged subtrees to PDF"
+      "n r e" #'my/org-roam-export-top-tagged-subtrees-to-pdf)
+#+end_src
 
 ** HOLD 自动为 =:chat:= 标签添加 folded VISIBILITY
 
