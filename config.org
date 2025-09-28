@@ -614,9 +614,45 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 [[help:org-latex-link]] 理论上可以advice这个函数
 
-我不确定能不能拆成多个文件，ox-latex 似乎不支持这种功能
+正确的做法应该是做一些配置，需要深入了解一下
+
+[[help:org-export-filter-link-functions]] 这是处理链接的函数表
+
+他的页码是从正文开始算的页码，然后我的目录也占页码的，这如何解决？
+让 [[help:org-latex-toc-command]] 设置目录用罗马数字就好了
+#+begin_src emacs-lisp
+(setq org-latex-toc-command "\\pagenumbering{roman}\n\\tableofcontents\n\\newpage\n\\pagenumbering{arabic}\n\n")
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/org-latex-link-with-pageref (orig-fun link desc info)
+  "为内部链接添加页码引用的 advice 函数"
+  (let* ((type (org-element-property :type link))
+         (result (funcall orig-fun link desc info)))
+    ;; 只对 custom-id, fuzzy, id 类型的链接添加页码引用
+    (if (member type '("custom-id" "fuzzy" "id"))
+        (let ((destination
+               (if (string= type "fuzzy")
+                   (org-export-resolve-fuzzy-link link info 'latex-matrices)
+                 (org-export-resolve-id-link link info))))
+          ;; 确保目标存在且不是外部文件
+          (if (and destination
+                   (not (eq (org-element-type destination) 'plain-text))
+                   (not (eq destination nil)))
+              (let ((label (org-latex--label destination info t)))
+                ;; 在原结果后添加页码引用
+                (concat result "~(第\\pageref{" label "}页)"))
+            result))
+      result)))
+
+(advice-add 'org-latex-link :around #'my/org-latex-link-with-pageref)
+#+end_src
 
 **** 主要导出函数
+
+我不确定能不能拆成多个文件，ox-latex 似乎不支持这种功能，不想了
+
+现在的问题是做不到自动多次编译，需要手动再编译一次（或两次）
 
 #+begin_src emacs-lisp
 ;; -- org-roam: export top-tagged subtrees to PDF (headline hierarchy parent definition) --
@@ -633,7 +669,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
   (interactive "sTag: ")
   (org-roam-db-sync)
-
   (setq my/org-roam-export-tag tag)
   (let ((file-name (make-temp-file (format "roam-export-%s-" tag)))
         (top-nodes (my/org-roam-nodes-with-tag tag))
@@ -646,8 +681,8 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
       (insert "#+latex_header: \\usepackage[UTF8]{ctex}\n")
       (insert "#+latex_compiler: xelatex\n\n")
       (dolist (n top-nodes)
-          (my/org-roam-extract-subtree n)
-          (org-paste-subtree 2))
+        (my/org-roam-extract-subtree n)
+        (org-paste-subtree 2))
 
       (write-file file-name)
 
