@@ -701,7 +701,7 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
       (org-mode)
       ;; Export header: Chinese + hyperref + TOC + numbered headings + optimized layout
       (insert "#+title: Roam Export\n")
-      (insert "#+options: toc:t num:t\n")
+      (insert "#+options: toc:t num:t \\n:t\n")
       (insert "#+latex_class_options: [twocolumn]\n")
       (insert "#+latex_compiler: xelatex\n")
       ;; Basic Chinese support
@@ -715,6 +715,7 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
       (insert "#+latex_header: \\definecolor{backcolour}{rgb}{0.95,0.95,0.92}\n")
       ;; Compact spacing and smaller font
       (insert "#+latex_header: \\renewcommand{\\normalsize}{\\fontsize{9}{10.8}\\selectfont}\n")
+      (insert "#+latex_header: \\setlength{\\parindent}{0pt}\n")
       (insert "#+latex_header: \\setlength{\\parskip}{0.1em}\n")
       ;; Geometry must be last to avoid being overridden
       (insert "#+latex_header: \\usepackage[margin=0.3in,top=0.25in,bottom=0.5in,left=0.2in,right=0.2in]{geometry}\n\n")
