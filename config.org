@@ -110,6 +110,8 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
       :localleader
       :prefix ("m" . "org-roam")
       "c" #'citar-org-roam-open-current-refs)
+;; 这个绑定在 citar 加载前不可用，之后需要改改
+
 ;; 下面是 citar-map 里的默认绑定，我不知道这个 keymap 原来是用在哪里的
 
 ;; RET citar-run-default-action
@@ -661,6 +663,28 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 ;; (require 'org-element)
 ;; (require 'seq)
 ;; (require 'cl-lib)
+;; Configure org-mode to use listings for code export
+(setq! org-latex-src-block-backend 'listings)
+(setq! org-latex-listings-options
+       '(("backgroundcolor" "\\color{backcolour}")
+         ("commentstyle" "\\color{codegreen}")
+         ("keywordstyle" "\\color{magenta}")
+         ("numberstyle" "\\tiny\\color{codegray}")
+         ("stringstyle" "\\color{codepurple}")
+         ("basicstyle" "\\ttfamily\\footnotesize")
+         ("breakatwhitespace" "false")
+         ("breaklines" "true")
+         ("captionpos" "b")
+         ("keepspaces" "true")
+         ("numbers" "left")
+         ("numbersep" "5pt")
+         ("showspaces" "false")
+         ("showstringspaces" "false")
+         ("showtabs" "false")
+         ("tabsize" "2")
+         ("frame" "single")
+         ("rulecolor" "\\color{black}")))
+
 (setq! org-latex-pdf-process
        '("latexmk -pdflatex=xelatex -pdf -interaction=nonstopmode -output-directory=%o %f"))
 
@@ -675,11 +699,25 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
         (all-nodes (my/org-roam-nodes-with-tag tag t)))
     (with-temp-file file-name
       (org-mode)
-      ;; Export header: Chinese + hyperref + TOC + numbered headings
+      ;; Export header: Chinese + hyperref + TOC + numbered headings + optimized layout
       (insert "#+title: Roam Export\n")
       (insert "#+options: toc:t num:t\n")
+      (insert "#+latex_class_options: [twocolumn]\n")
+      (insert "#+latex_compiler: xelatex\n")
+      ;; Basic Chinese support
       (insert "#+latex_header: \\usepackage[UTF8]{ctex}\n")
-      (insert "#+latex_compiler: xelatex\n\n")
+      ;; Enhanced code blocks with line numbers and syntax highlighting
+      (insert "#+latex_header: \\usepackage{listings}\n")
+      (insert "#+latex_header: \\usepackage{xcolor}\n")
+      (insert "#+latex_header: \\definecolor{codegreen}{rgb}{0,0.6,0}\n")
+      (insert "#+latex_header: \\definecolor{codegray}{rgb}{0.5,0.5,0.5}\n")
+      (insert "#+latex_header: \\definecolor{codepurple}{rgb}{0.58,0,0.82}\n")
+      (insert "#+latex_header: \\definecolor{backcolour}{rgb}{0.95,0.95,0.92}\n")
+      ;; Compact spacing and smaller font
+      (insert "#+latex_header: \\renewcommand{\\normalsize}{\\fontsize{9}{10.8}\\selectfont}\n")
+      (insert "#+latex_header: \\setlength{\\parskip}{0.1em}\n")
+      ;; Geometry must be last to avoid being overridden
+      (insert "#+latex_header: \\usepackage[margin=0.3in,top=0.25in,bottom=0.5in,left=0.2in,right=0.2in]{geometry}\n\n")
       (dolist (n top-nodes)
         (my/org-roam-extract-subtree n)
         (org-paste-subtree 2))
