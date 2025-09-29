@@ -472,45 +472,73 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+begin_src emacs-lisp
 (defvar my/org-roam-export-tag nil)
 (defvar my/org-roam-export-tags '("CP" "CF" "contest"))
+
+;; Helper function to handle both single tag and multiple tags
+(defun my/normalize-tags (tags)
+  "Convert TAGS to a list if it's a string, otherwise return as-is."
+  (if (stringp tags) (list tags) tags))
 #+end_src
 
 之后需要看看怎么扩展到多个 tag
-暂时先搞单个的实现
+已经完成多 tag 支持！现在可以这样使用：
+
+;; 使用单个 tag
+(my/org-roam-export-top-tagged-subtrees-to-pdf "CP")
+
+;; 使用多个 tag（会包含任意一个 tag 的节点）
+(my/org-roam-export-top-tagged-subtrees-to-pdf '("CP" "CF" "contest"))
+
+;; 交互式输入多个 tag，用空格或逗号分隔
+;; 例如：CP CF contest
 
 **** 提取主节点
-我这其实和 [[id:8e646f0b-aa8e-470b-9dd9-d70b8693dd3c][lazyblorg]] 干了差不多的事情，但是它捕捉的是 blog 这个 tag
+我这其实和 [[id:8e646f0b-aa8e-470b-9dd9-d70b8693dd3c][lazyblorg]] 干了差不多的事情，但是它没有基于 org-roam
 然后让每个子树形成一篇博客，导出成 html
 我这里却是平铺导出成 latex 加上页码链接
 
 #+begin_src emacs-lisp
-(defun my/org-roam-nodes-with-tag (tag &optional inheritp)
-  "Return org-roam nodes where TAG is locally defined (non-inherited)."
+(defun my/org-roam-nodes-with-tag (tags &optional inheritp)
+  "Return org-roam nodes where any of TAGS is locally defined (non-inherited).
+TAGS can be a string (single tag) or a list of strings (multiple tags)."
   ;; (require 'org-roam)
-  (let* ((rows (org-roam-db-query
-                [:select [nodes:file nodes:pos nodes:id]
-                 :from nodes
-                 :inner :join tags :on (= nodes:id tags:node_id)
-                 :where (= tags:tag $s1)]
-                tag))
-         (result '()))
+  (let* ((tag-list (if (stringp tags) (list tags) tags))
+         (or-clauses (cl-loop for i from 1 to (length tag-list)
+                             collect `(= tags:tag ,(intern (format "$s%d" i)))))
+         (where-clause (if (= (length or-clauses) 1)
+                          (car or-clauses)
+                        (cons 'or or-clauses)))
+         (rows (apply #'org-roam-db-query
+                     `[:select [nodes:file nodes:pos nodes:id]
+                       :from nodes
+                       :inner :join tags :on (= nodes:id tags:node_id)
+                       :where ,where-clause]
+                     tag-list))
+         (result '())
+         (seen-ids (make-hash-table :test 'equal)))
     (if inheritp
         (dolist (row rows result)
-          (push (org-roam-node-from-id (nth 2 row)) result))
+          (let ((id (nth 2 row)))
+            (unless (gethash id seen-ids)
+              (puthash id t seen-ids)
+              (push (org-roam-node-from-id id) result))))
       (dolist (row rows result)
         (let ((file (nth 0 row))
               (pos  (nth 1 row))
+              (id   (nth 2 row))
               node)
-          (with-current-buffer (find-file-noselect file)
-            (save-excursion
-              (goto-char pos)
-              (setq node (org-roam-node-at-point t))
-              (setq local-tags
-                    (if (eq pos 1)
-                        org-file-tags
-                      (org-get-tags nil t)))
-              (when (member tag local-tags)
-                (push node result))))))
-      result)))
+          (unless (gethash id seen-ids)
+            (with-current-buffer (find-file-noselect file)
+              (save-excursion
+                (goto-char pos)
+                (setq node (org-roam-node-at-point t))
+                (setq local-tags
+                      (if (eq pos 1)
+                          org-file-tags
+                        (org-get-tags nil t)))
+                (when (seq-intersection tag-list local-tags)
+                  (puthash id t seen-ids)
+                  (push node result))))))))
+      result))
 #+end_src
 
 **** 拉入节点子树
@@ -571,12 +599,21 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+begin_src emacs-lisp
 (defun my/org-roam-backlinks-of-id (id)
   "Return list of (SRC-ID TITLE)."
-  (let* ((rows (org-roam-db-query
-                [:select [links:source]
-                 :from links
-                 :inner :join tags :on (= links:source tags:node_id)
-                 :where (and (= links:dest $s1) (= links:type "id") (= tags:tag $s2))]
-                id my/org-roam-export-tag))
+  (let* ((tag-list (if (stringp my/org-roam-export-tag)
+                       (list my/org-roam-export-tag)
+                       my/org-roam-export-tag))
+         (or-clauses (cl-loop for i from 2 to (1+ (length tag-list))
+                             collect `(= tags:tag ,(intern (format "$s%d" i)))))
+         (tag-where (if (= (length or-clauses) 1)
+                       (car or-clauses)
+                     (cons 'or or-clauses)))
+         (where-clause (list 'and '(= links:dest $s1) '(= links:type "id") tag-where))
+         (rows (apply #'org-roam-db-query
+                     `[:select [links:source]
+                       :from links
+                       :inner :join tags :on (= links:source tags:node_id)
+                       :where ,where-clause]
+                     (cons id tag-list)))
          res)
     (dolist (row rows)
       (let* ((id (car row))
@@ -665,6 +702,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 ;; (require 'cl-lib)
 ;; Configure org-mode to use listings for code export
 (setq! org-latex-src-block-backend 'listings)
+
 (setq! org-latex-listings-options
        '(("backgroundcolor" "\\color{backcolour}")
          ("commentstyle" "\\color{codegreen}")
@@ -688,51 +726,60 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (setq! org-latex-pdf-process
        '("latexmk -pdflatex=xelatex -pdf -interaction=nonstopmode -output-directory=%o %f"))
 
-(defun my/org-roam-export-top-tagged-subtrees-to-pdf (tag &optional outfile)
+(defun my/org-roam-export-top-tagged-subtrees-to-pdf (tags &optional outfile)
   "Export all top-tagged org-roam headlines (by headline hierarchy) into a single PDF.
+TAGS can be a string (single tag) or a list of strings (multiple tags).
 Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
-  (interactive "sTag: ")
-  (org-roam-db-sync)
-  (setq my/org-roam-export-tag tag)
-  (let ((file-name (make-temp-file (format "roam-export-%s-" tag)))
-        (top-nodes (my/org-roam-nodes-with-tag tag))
-        (all-nodes (my/org-roam-nodes-with-tag tag t)))
-    (with-temp-file file-name
-      (org-mode)
-      ;; Export header: Chinese + hyperref + TOC + numbered headings + optimized layout
-      (insert "#+title: Roam Export\n")
-      (insert "#+options: toc:t num:t \\n:t\n")
-      (insert "#+latex_class_options: [twocolumn]\n")
-      (insert "#+latex_compiler: xelatex\n")
-      ;; Basic Chinese support
-      (insert "#+latex_header: \\usepackage[UTF8]{ctex}\n")
-      ;; Enhanced code blocks with line numbers and syntax highlighting
-      (insert "#+latex_header: \\usepackage{listings}\n")
-      (insert "#+latex_header: \\usepackage{xcolor}\n")
-      (insert "#+latex_header: \\definecolor{codegreen}{rgb}{0,0.6,0}\n")
-      (insert "#+latex_header: \\definecolor{codegray}{rgb}{0.5,0.5,0.5}\n")
-      (insert "#+latex_header: \\definecolor{codepurple}{rgb}{0.58,0,0.82}\n")
-      (insert "#+latex_header: \\definecolor{backcolour}{rgb}{0.95,0.95,0.92}\n")
-      ;; Compact spacing and smaller font
-      (insert "#+latex_header: \\renewcommand{\\normalsize}{\\fontsize{9}{10.8}\\selectfont}\n")
-      (insert "#+latex_header: \\setlength{\\parindent}{0pt}\n")
-      (insert "#+latex_header: \\setlength{\\parskip}{0.1em}\n")
-      ;; Geometry must be last to avoid being overridden
-      (insert "#+latex_header: \\usepackage[margin=0.3in,top=0.25in,bottom=0.5in,left=0.2in,right=0.2in]{geometry}\n\n")
-      (dolist (n top-nodes)
-        (my/org-roam-extract-subtree n)
-        (org-paste-subtree 2))
+  (interactive "sTags (space-separated): ")
+  (require 'ox-latex)
+  ;; Add language aliases for listings package
+  (add-to-list 'org-latex-listings-langs '(cpp "C++"))
+  (add-to-list 'org-latex-listings-langs '(c++ "C++"))
 
-      (write-file file-name)
+  (let ((tag-list (if (stringp tags)
+                      (split-string tags "[ ,]+" t "[ \t\n\r]+")
+                    tags)))
+    (org-roam-db-sync)
+    (setq my/org-roam-export-tag tag-list)
+    (let ((file-name (make-temp-file (format "roam-export-%s-" (mapconcat 'identity tag-list "-"))))
+          (top-nodes (my/org-roam-nodes-with-tag tag-list))
+          (all-nodes (my/org-roam-nodes-with-tag tag-list t)))
+      (with-temp-file file-name
+        (org-mode)
+        ;; Export header: Chinese + hyperref + TOC + numbered headings + optimized layout
+        (insert (format "#+title: Roam Export (%s)\n" (mapconcat 'identity tag-list ", ")))
+        (insert "#+options: toc:t num:t \\n:t\n")
+        (insert "#+latex_class_options: [twocolumn]\n")
+        (insert "#+latex_compiler: xelatex\n")
+        ;; Basic Chinese support
+        (insert "#+latex_header: \\usepackage[UTF8]{ctex}\n")
+        ;; Enhanced code blocks with line numbers and syntax highlighting
+        (insert "#+latex_header: \\usepackage{listings}\n")
+        (insert "#+latex_header: \\usepackage{xcolor}\n")
+        (insert "#+latex_header: \\definecolor{codegreen}{rgb}{0,0.6,0}\n")
+        (insert "#+latex_header: \\definecolor{codegray}{rgb}{0.5,0.5,0.5}\n")
+        (insert "#+latex_header: \\definecolor{codepurple}{rgb}{0.58,0,0.82}\n")
+        (insert "#+latex_header: \\definecolor{backcolour}{rgb}{0.95,0.95,0.92}\n")
+        ;; Compact spacing and smaller font
+        (insert "#+latex_header: \\renewcommand{\\normalsize}{\\fontsize{9}{10.8}\\selectfont}\n")
+        (insert "#+latex_header: \\setlength{\\parindent}{0pt}\n")
+        (insert "#+latex_header: \\setlength{\\parskip}{0.1em}\n")
+        ;; Geometry must be last to avoid being overridden
+        (insert "#+latex_header: \\usepackage[margin=0.3in,top=0.25in,bottom=0.5in,left=0.2in,right=0.2in]{geometry}\n\n")
+        (dolist (n top-nodes)
+          (my/org-roam-extract-subtree n)
+          (org-paste-subtree 2))
 
-      (dolist (n all-nodes)
-        (let ((id (org-roam-node-id n)))
-          (my/org-insert-backlinks-section id file-name)))
+        (write-file file-name)
 
-      ;; Export to PDF
-      (let ((outfile (or outfile (expand-file-name (format "roam-%s.pdf" tag) default-directory))))
-        (org-latex-export-to-pdf)
-        (message "Exported PDF for tag %s. Buffer: %s" tag (buffer-name))))))
+        (dolist (n all-nodes)
+          (let ((id (org-roam-node-id n)))
+            (my/org-insert-backlinks-section id file-name)))
+
+        ;; Export to PDF
+        (let ((outfile (or outfile (expand-file-name (format "roam-%s.pdf" (mapconcat 'identity tag-list "-")) default-directory))))
+          (org-latex-export-to-pdf)
+          (message "Exported PDF for tags %s. Buffer: %s" tag-list (buffer-name)))))))
 #+end_src
 
 **** 快捷键绑定
@@ -741,6 +788,13 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
       :desc "Roam export top-tagged subtrees to PDF"
       "n r e" #'my/org-roam-export-top-tagged-subtrees-to-pdf)
 #+end_src
+
+**** 一些问题
+
+如果代码块有一些奇怪的属性，可能会出现导出错误
+比如 =:exports both :results output=
+
+代码块高亮对于写成 c++ 的代码块能正常工作，但是写成 cpp 的不行
 
 ** HOLD 自动为 =:chat:= 标签添加 folded VISIBILITY
 
