@@ -225,6 +225,22 @@ telegram client for emacs
        calendar-longitude 120.16142)
 #+end_src
 
+** cal-china-x
+#+begin_src emacs-lisp :tangle packages.el
+(package! cal-china-x)
+#+end_src
+
+#+begin_src emacs-lisp
+(require 'cal-china-x)
+(setq! mark-holidays-in-calendar t)
+(setq! cal-china-x-important-holidays cal-china-x-chinese-holidays)
+(setq! cal-china-x-general-holidays '((holiday-lunar 1 15 "元宵节")))
+(setq! calendar-holidays
+      (append cal-china-x-important-holidays
+              cal-china-x-general-holidays
+              ))
+#+end_src
+
 * 基础设置
 
 ** Theme
@@ -333,6 +349,273 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       ;; org-confirm-babel-evaluate nil
       org-edit-src-content-indentation 0
       )
+#+end_src
+
+** org-agenda
+
+稍微讲一讲需求
+
+首先预先设定每学期的校历
+校历由三个部分组成
+1. 起止日期
+2. 放假日期
+   需要支持两种形式，单点和区间
+3. 调休日期
+   表示在之后的处理中把一天替换成另一天
+
+diary-course 是一个 sexp diary entry
+输入有三个 课程在第几个学期 课程在星期几 一个用来判定第几周有没有课的函数（可选，若空就是每周都有）
+
+具体流程如下：
+判断一个日期是否是预先设定的假期
+然后看是不是调休，做一下映射
+最后得到 这一天是这学期第几周的星期几
+判一下星期几对不对得上
+然后把第几周作用在筛选函数上再判断一遍
+下面给出一个可直接放入 org/diary 的 Emacs Lisp 方案。包含：
+- 学期配置：起止日期、放假（单点/区间）、调休映射
+- 核心工具函数：日期比较、周序号计算、假期/调休判定与映射
+- diary-course SEXP 条目：按你的流程判断是否匹配某门课
+
+使用方法：
+- 将以下代码放入你的 init.el 或专门的 .el 文件并加载
+- 在 org/agenda 的 diary file 中添加类似 (diary-course 1 2 nil) 的条目
+  含义：第1学期、每周二、每周都有课（筛选函数为 nil）
+
+代码如下：
+
+#+begin_src emacs-lisp
+;; =========================
+;; 配置区：学期与校历
+;; =========================
+
+(defvar my-academic-terms
+  ;; 每个学期是一个 plist：
+  ;; :name        学期名（可选）
+  ;; :range       (start end) 含首尾，格式 (month day year)
+  ;; :holidays    放假，支持混合列表：单点 (m d y) 或区间 ((m d y) (m d y))
+  ;; :adjustments 调休，列表形式：((from-m from-d from-y) (to-m to-d to-y))
+  ;;              表示把 from 那天的课改到 to 那天（查询时把 to 映射回 from 判定周次与星期）
+  ;; 说明：:adjustments 的方向通常用 “把某个工作日安排到另一天上课”，
+  ;; 在判定当天课程时，我们将“查询日”映射回“原日”以使用原日的周次/星期逻辑。
+  [
+   ;; 示例：2024-09-02 至 2025-01-10
+   (:name "2024-秋"
+    :range ((9 2 2024) (1 10 2025))
+    :holidays ( ;; 单点
+               (10 1 2024) (10 2 2024) (10 3 2024)
+               ;; 区间
+               ((9 29 2024) (10 6 2024)))
+    :adjustments (
+                  ;; 把 2024-10-07 的课挪到 2024-10-12 上
+                  ((10 7 2024) (10 12 2024))
+                  ;; 把 2024-09-29 的课挪到 2024-10-08 上
+                  ((9 29 2024) (10 8 2024))
+                  ))
+
+   ;; 再示例一个学期：2025-02-24 至 2025-07-04
+   (:name "2025-春"
+    :range ((2 24 2025) (7 4 2025))
+    :holidays ( (5 1 2025) ((6 1 2025) (6 3 2025)) )
+    :adjustments ( ((4 7 2025) (4 12 2025)) ))
+
+   (:name "2025-秋"
+    :range ((9 15 2025) (1 11 2026))
+    :holidays (
+               (1 1 2026)
+               (10 30 2025) (10 31 2025)
+               ((10 1 2025) (10 8 2025)))
+    :adjustments (
+                  ((10 7 2025) (9 28 2025))
+                  ((10 8 2025) (10 11 2025))
+                  ))
+   ])
+#+end_src
+
+#+begin_src emacs-lisp
+;; =========================
+;; 工具函数
+;; =========================
+
+(defun my-date-to-abs (date)
+  "DATE: (month day year) -> absolute day number."
+  (let ((m (nth 0 date)) (d (nth 1 date)) (y (nth 2 date)))
+    (calendar-absolute-from-gregorian (list m d y))))
+
+(defun my-abs-to-date (abs-day)
+  (let* ((g (calendar-gregorian-from-absolute abs-day)))
+    (list (nth 0 g) (nth 1 g) (nth 2 g))))
+
+(defun my-date<= (a b)
+  (<= (my-date-to-abs a) (my-date-to-abs b)))
+
+(defun my-date< (a b)
+  (< (my-date-to-abs a) (my-date-to-abs b)))
+
+(defun my-date= (a b)
+  (= (my-date-to-abs a) (my-date-to-abs b)))
+
+(defun my-date-in-range-p (date range)
+  "RANGE: ((m d y) (m d y)) inclusive."
+  (let ((s (car range)) (e (cadr range)))
+    (and (my-date<= s date) (my-date<= date e))))
+
+(defun my-day-of-week (date)
+  "Return Emacs weekday number: 0=Sunday ... 6=Saturday."
+  (let ((m (nth 0 date)) (d (nth 1 date)) (y (nth 2 date)))
+    (calendar-day-of-week (list m d y))))
+
+(defun my-find-term (date)
+  "在 my-academic-terms 中找到包含 DATE 的学期 plist。"
+  (let* ((abs (my-date-to-abs date))
+         (len (length my-academic-terms))
+         (idx 0)
+         found)
+    (while (and (< idx len) (not found))
+      (let* ((term (aref my-academic-terms idx))
+             (range (plist-get term :range)))
+        (when (my-date-in-range-p date range)
+          (setq found term)))
+      (setq idx (1+ idx)))
+    found))
+
+(defun my-term-start (term)
+  (car (plist-get term :range)))
+
+(defun my-term-end (term)
+  (cadr (plist-get term :range)))
+
+(defun my-holiday-p (date term)
+  "判断 DATE 是否在 TERM 的放假日中。支持单点或区间。"
+  (let ((hs (plist-get term :holidays))
+        (abs (my-date-to-abs date))
+        hit)
+    (dolist (h hs)
+      (cond
+       ;; 单点
+       ((and (listp h) (= (length h) 3))
+        (when (= abs (my-date-to-abs h))
+          (setq hit t)))
+       ;; 区间
+       ((and (listp h) (= (length h) 2))
+        (when (my-date-in-range-p date h)
+          (setq hit t)))))
+    hit))
+
+(defun my-adjustment-find-to->from (date term)
+  "若 DATE 是某个调休的 to 日，返回对应的 from 日；否则返回 nil。
+调休表示：把 from 那天的课挪到 to 那天上。查询时需把 to 映射回 from。"
+  (let* ((to-abs (my-date-to-abs date))
+         (adjs (plist-get term :adjustments))
+         found)
+    (dolist (pair adjs)
+      (let ((from (nth 0 pair))
+            (to   (nth 1 pair)))
+        (when (= to-abs (my-date-to-abs to))
+          (setq found from))))
+    found))
+
+(defun my-week-index-in-term (date term)
+  "计算 DATE 在 TERM 中的周序号（从 1 开始）。
+以 TERM 起始日为第一周的周1，如果起始日不是周一，则起始日所在周算第1周的剩余天数。
+实现为：floor((date - term-start)/7) + 1"
+  (let* ((start (my-term-start term))
+         (delta (- (my-date-to-abs date) (my-date-to-abs start))))
+    (1+ (floor (/ delta 7)))))
+#+end_src
+
+#+begin_src emacs-lisp
+;; =========================
+;; 主函数：diary-course
+;; =========================
+;; 用法：
+;; (diary-course TERM-INDEX WEEKDAY FILTER-FN-OR-NIL)
+;; - TERM-INDEX: 第几个学期，从 1 开始，对应 my-academic-terms 的顺序
+;; - WEEKDAY: Emacs weekday, 0=周日 ... 6=周六
+;; - FILTER-FN-OR-NIL: 一个函数，接受周序号（正整数），返回 t/nil；
+;;   例如：只在单周上： (lambda (w) (= (mod w 2) 1))
+;;         双周上：       (lambda (w) (= (mod w 2) 0))
+;;         第1-16周：     (lambda (w) (and (>= w 1) (<= w 16)))
+;;   若为 nil，表示每周都有
+
+(defun diary-course (term-index weekday &optional filter-fn)
+  "SEXP diary entry，用于 org-agenda。
+流程：
+1) 判定是否在 term-index 指定学期内；若不在，返回 nil
+2) 若为假期，直接返回 nil
+3) 若当天是某个调休的 to 日，则将查询日期映射回 from 日用于周与星期判定
+4) 计算该（映射后）日期是学期第几周、星期几
+5) 星期匹配 + 过滤函数判定
+返回字符串（用于显示）或 nil。"
+  (let* ((terms my-academic-terms)
+         (idx (1- term-index)))
+    (when (and (>= idx 0) (< idx (length terms)))
+      (let* ((term (aref terms idx)))
+        (when (my-date-in-range-p date (plist-get term :range))
+          ;; 1) 假期直接排除
+          (unless (my-holiday-p date term)
+            ;; 2) 调休映射：如果 date 是某条调整的 to，则映射到 from
+            (let* ((mapped (or (my-adjustment-find-to->from date term) date))
+                   (w (my-week-index-in-term mapped term))
+                   (dow (my-day-of-week mapped)))
+              (when (and (= dow weekday)
+                         (or (null filter-fn) (funcall filter-fn w)))
+                ;; 返回一个简短描述，包含学期名/周次
+                (let* ((term-name (or (plist-get term :name)
+                                      (format "Term-%d" term-index))))
+                  (format "%s: Week %d" term-name w))))))))))
+
+;; =========================
+;; 示例 diary 条目
+;; =========================
+;; 第1学期，每周一都有课：
+;; (diary-course 1 1 nil)
+;;
+;; 第1学期，每周三，单周上课：
+;; (diary-course 1 3 (lambda (w) (= (mod w 2) 1)))
+;;
+;; 第2学期，每周五，第1-16周：
+;; (diary-course 2 5 (lambda (w) (and (>= w 1) (<= w 16))))
+#+end_src
+
+备注：
+- weekday 使用 Emacs 的 0..6（周日..周六）
+- 如需调整“第几周”的定义，可修改 my-week-index-in-term
+- 根据你的校历替换 my-academic-terms 即可
+
+*** sunrise/sunset
+
+虽然有 =%%(diary-sunrise-sunset)= 这个东西可以用，但是这个形式并不好看，还是抄一个比较好
+#+begin_src emacs-lisp
+;;Sunrise and Sunset
+;;日出而作, 日落而息
+(defun diary-sunrise ()
+  (let ((dss (diary-sunrise-sunset)))
+    (with-temp-buffer
+      (insert dss)
+      (goto-char (point-min))
+      (while (re-search-forward " ([^)]*)" nil t)
+        (replace-match "" nil nil))
+      (goto-char (point-min))
+      (search-forward ",")
+      (buffer-substring (point-min) (match-beginning 0)))))
+
+(defun diary-sunset ()
+  (let ((dss (diary-sunrise-sunset))
+        start end)
+    (with-temp-buffer
+      (insert dss)
+      (goto-char (point-min))
+      (while (re-search-forward " ([^)]*)" nil t)
+        (replace-match "" nil nil))
+      (goto-char (point-min))
+      (search-forward ", ")
+      (setq start (match-end 0))
+      (search-forward " at")
+      (setq end (match-beginning 0))
+      (goto-char start)
+      (capitalize-word 1)
+      (buffer-substring start end))))
 #+end_src
 
 ** UI
@@ -477,6 +760,20 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 (defun my/normalize-tags (tags)
   "Convert TAGS to a list if it's a string, otherwise return as-is."
   (if (stringp tags) (list tags) tags))
+
+;; Helper function to convert string to pinyin for sorting, preserving non-Chinese characters
+(defun my/string-to-pinyin-for-sort (str)
+  "Convert STR to pinyin for sorting. Chinese characters are converted to pinyin,
+non-Chinese characters (like English letters) are preserved at their original positions."
+  (let ((result ""))
+    (dolist (char (string-to-list str))
+      (let ((char-str (char-to-string char)))
+        (setq result
+              (concat result
+                      (if (and (>= char #x4e00) (<= char #x9fff))  ; Chinese character range
+                          (pyim-cstring-to-pinyin char-str "")
+                        char-str)))))
+    (downcase result)))
 #+end_src
 
 之后需要看看怎么扩展到多个 tag
@@ -495,6 +792,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 我这其实和 [[id:8e646f0b-aa8e-470b-9dd9-d70b8693dd3c][lazyblorg]] 干了差不多的事情，但是它没有基于 org-roam
 然后让每个子树形成一篇博客，导出成 html
 我这里却是平铺导出成 latex 加上页码链接
+
+其实我之后也可以考虑复用这里的一些函数来做博客导出
+
+说实话我没有看懂这里让多tag支持工作的宏
 
 #+begin_src emacs-lisp
 (defun my/org-roam-nodes-with-tag (tags &optional inheritp)
@@ -693,6 +994,10 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
 
 现在的问题是做不到自动多次编译，需要手动再编译一次（或两次）
 
+#+begin_src emacs-lisp :tangle packages.el
+(package! pyim)
+#+end_src
+
 #+begin_src emacs-lisp
 ;; -- org-roam: export top-tagged subtrees to PDF (headline hierarchy parent definition) --
 ;; (require 'org)
@@ -732,6 +1037,7 @@ TAGS can be a string (single tag) or a list of strings (multiple tags).
 Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
   (interactive "sTags (space-separated): ")
   (require 'ox-latex)
+  (require 'org-roam)
   ;; Add language aliases for listings package
   (add-to-list 'org-latex-listings-langs '(cpp "C++"))
   (add-to-list 'org-latex-listings-langs '(c++ "C++"))
@@ -766,6 +1072,11 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
         (insert "#+latex_header: \\setlength{\\parskip}{0.1em}\n")
         ;; Geometry must be last to avoid being overridden
         (insert "#+latex_header: \\usepackage[margin=0.3in,top=0.25in,bottom=0.5in,left=0.2in,right=0.2in]{geometry}\n\n")
+        ;; Sort top-nodes by title in dictionary order (Chinese titles converted to pinyin)
+        (setq top-nodes (sort top-nodes
+                             (lambda (a b)
+                               (string> (my/string-to-pinyin-for-sort (org-roam-node-title a))
+                                       (my/string-to-pinyin-for-sort (org-roam-node-title b))))))
         (dolist (n top-nodes)
           (my/org-roam-extract-subtree n)
           (org-paste-subtree 2))
@@ -794,7 +1105,7 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 如果代码块有一些奇怪的属性，可能会出现导出错误
 比如 =:exports both :results output=
 
-代码块高亮对于写成 c++ 的代码块能正常工作，但是写成 cpp 的不行
+标题需要根据拼音的字典序排序！用 pyim 的函数实现了
 
 ** HOLD 自动为 =:chat:= 标签添加 folded VISIBILITY
 
