@@ -40,7 +40,7 @@
        doom                ; what makes DOOM look the way it does
        doom-dashboard      ; a nifty splash screen for Emacs
        ;; doom-quit        ; DOOM quit-message prompts when you quit Emacs
-       (emoji +unicode)    ; ☻
+       ;; (emoji +unicode) ; ☻
        hl-todo             ; highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
        indent-guides       ; highlighted indent columns
        ligatures           ; ligatures and symbols to make your code pretty again
@@ -100,17 +100,17 @@
        biblio              ; Writes a PhD for you (citation needed)
        ;;collab            ; buffers with friends
        debugger            ; FIXME stepping through code, to help you add bugs
-       ;;direnv
+       direnv
        (docker +lsp)
        ;; editorconfig     ; let someone else argue about tabs vs spaces 有内置实现的
        ein                 ; tame Jupyter notebooks with emacs
        (eval +overlay)     ; run code, run (also, repls)
        lookup              ; navigate your code and its documentation
-       ;;llm               ; when I said you needed friends, I didn't mean...
+       llm               ; when I said you needed friends, I didn't mean...
        lsp                 ; M-x vscode
        magit               ; a git porcelain for Emacs
-       ;;make              ; run make tasks from Emacs
-       ;;pass              ; password manager for nerds
+       make                ; run make tasks from Emacs
+       (pass +auth)                ; password manager for nerds
        pdf                 ; pdf enhancements
        ;;terraform         ; infrastructure as code
        ;;tmux              ; an API for interacting with tmux
@@ -155,7 +155,7 @@
        ;;javascript        ; all(hope(abandon(ye(who(enter(here))))))
        ;;julia             ; a better, faster MATLAB
        ;;kotlin            ; a better, slicker Java(Script)
-       (latex +fold +lsp)             ; writing papers in Emacs has never been so fun
+       (latex +fold +lsp)  ; writing papers in Emacs has never been so fun
        ;;lean              ; for folks with too much to prove
        ;;ledger            ; be audit you can be
        lua                 ; one-based indices? one-based indices

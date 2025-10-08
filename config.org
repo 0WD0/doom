@@ -348,7 +348,39 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-id-link-consider-parent-id t
       ;; org-confirm-babel-evaluate nil
       org-edit-src-content-indentation 0
+      org-link-search-must-match-exact-headline nil ;; 这东西的默认设置是真逆天
       )
+#+end_src
+
+** org-roam-capture
+
+#+begin_src emacs-lisp :tangle no
+(setq! org-roam-node-display-template
+      (concat "${title:*} "
+              (propertize "${tags:10}" 'face 'org-tag)))
+#+end_src
+
+
+#+begin_src emacs-lisp 
+(after! org
+  
+  ;; (add-to-list 'org-roam-capture-templates
+  ;;              '("l" "log" entry
+  ;;                "* ${title}\n\n%?"
+  ;;                ;; Ensure to have a single node with this title/alias below.
+  ;;                ;;            ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓
+  ;;                :target (node "org-roam")
+  ;;                :unnarrowed t
+  ;;                :prepend t
+  ;;                :empty-lines 1)
+  ;;              )
+  
+  ;; (setq! org-roam-capture-templates
+  ;;        '(("d" "default" plain
+  ;;           "%?"
+  ;;           :target (node "${title}")  
+  ;;           :unnarrowed t)))
+  )
 #+end_src
 
 ** org-agenda
@@ -362,6 +394,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
    需要支持两种形式，单点和区间
 3. 调休日期
    表示在之后的处理中把一天替换成另一天
+
+现在基本功能已经正常工作了，自定义筛选函数还没有测试
+
+-----
 
 diary-course 是一个 sexp diary entry
 输入有三个 课程在第几个学期 课程在星期几 一个用来判定第几周有没有课的函数（可选，若空就是每周都有）
@@ -622,6 +658,13 @@ diary-course 是一个 sexp diary entry
 
 *** My +pretty
 
+#+begin_src emacs-lisp
+(setq! org-highlight-latex-and-related '(native script entities)
+       org-hide-emphasis-markers t
+       org-pretty-entities t)
+#+end_src
+这个 [[help:org-pretty-entities]] 和 [[doom-module:ui emoji]] 有冲突
+
 #+begin_src emacs-lisp :tangle packages.el
 (package! org-appear :pin "32ee50f8fdfa449bbc235617549c1bccb503cb09")
 (package! org-modern :pin "1723689710715da9134e62ae7e6d41891031813c")
@@ -631,13 +674,10 @@ diary-course 是一个 sexp diary entry
 
 #+begin_src emacs-lisp
 (after! org
-  (setq org-highlight-latex-and-related '(native script entities)
-        org-hide-emphasis-markers t
-        org-pretty-entities nil
-        org-appear-autosubmarkers t
-        org-appear-inside-latex t
-        org-appear-autolinks 'just-brackets
-        org-appear-autoentities t))
+  (setq! org-appear-autosubmarkers t
+         org-appear-inside-latex t
+         org-appear-autolinks 'just-brackets
+         org-appear-autoentities t))
 
 (use-package! org-appear
   :hook (org-mode . org-appear-mode))
@@ -947,6 +987,8 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
         (my/org-roam-append-to-node-end id file content)))))
 #+end_src
 
+***** TODO 在无法找到对应 id 也就是链接解析失败的时候会报错失败
+
 **** 导出页码
 最后支持一下页码导出功能
 应该就是用 \pageref{sec:chapter_one} 这样的东西
@@ -1222,29 +1264,19 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
                 #'org-babel-C-execute/filter-args)))
 #+end_src
 
-** org-latex-preview
-
+** latex 集成
 *** 添加 LaTeX 包
 
-貌似没有区别
-
-#+begin_src emacs-lisp :tangle no
+会在导出的时候自动加到文件里
+#+begin_src emacs-lisp
 (after! org
   (dolist (pkg '("amsmath" "amssymb" "mathtools" "mathrsfs"))
     (add-to-list 'org-latex-packages-alist `("" ,pkg t))))
 #+end_src
 
-*** LaTeX 预览渲染进程设置
-
-#+begin_src emacs-lisp
-(setq org-preview-latex-default-process 'dvisvgm)
-#+end_src
-
-*** Highlight
+*** 行间latex块背景色
 
 [[https://stackoverflow.com/questions/69474043/emacs-org-mode-background-color-of-latex-fragments-with-org-highlight-latex-a][Emacs org mode: background color of latex fragments (with `org-highlight-latex-and-related`) : which variable to change?]]
-
-单独设置行内 LaTeX 块的背景颜色
 
 #+begin_src emacs-lisp
 (after! org-src
@@ -1253,16 +1285,14 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
   )
 #+end_src
 
-*** evil-mode
+*** org-latex-preview
+**** LaTeX 预览渲染进程设置
 
-不知道有什么用
-#+begin_src emacs-lisp :tangle no
-(add-hook! 'org-src-mode-hook
-  (when (string= major-mode "latex-mode")
-    (evil-tex-mode 1)))
+#+begin_src emacs-lisp
+(setq org-preview-latex-default-process 'dvisvgm)
 #+end_src
 
-*** LaTeX 预览图像缩放
+**** LaTeX 预览图像缩放
 :PROPERTIES:
 :CUSTOM_ID: latex-resize
 :END:
@@ -1313,10 +1343,23 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
   (advice-add 'org-latex-preview :after #'my/latex-preview-post-render))
 #+end_src
 
-**** TODO 在标题处按 RET 时也会 toggle latex 预览，此时预览跳出的大小没有被正确设置！
-**** TODO 现在的设置没有随字体大小变化而变化，在字体调大之后预览会出现占不满行高的情况
+***** TODO 在标题处按 RET 时也会 toggle latex 预览，此时预览跳出的大小没有被正确设置！
+***** TODO 现在的设置没有随字体大小变化而变化，在字体调大之后预览会出现占不满行高的情况
+
+*** evil-tex-mode in src-mode
+不知道有什么用
+#+begin_src emacs-lisp :tangle no
+(add-hook! 'org-src-mode-hook
+  (when (string= major-mode "latex-mode")
+    (evil-tex-mode 1)))
+#+end_src
 
 ** typst 集成
+
+*** org-typst-advice
+:PROPERTIES:
+:CUSTOM_ID: org-typst-advice
+:END:
 
 #+begin_src emacs-lisp
 (defvar org-typst-scale-ratio 180)
@@ -1416,6 +1459,16 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
   (advice-add 'org-create-formula-image :around #'org-create-formula-image--typst-advice))
 #+end_src
 
+
+*** ox-typst
+#+begin_src emacs-lisp :tangle packages.el
+(package! ox-typst)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! ox-typst
+  :after org)
+#+end_src
 ** org-passwords.el
 
 #+begin_src emacs-lisp
@@ -1546,6 +1599,12 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+end_src
 
 
+
+* LaTeX editing
+
+#+begin_src emacs-lisp
+(setq +latex-viewers '(zathura))
+#+end_src
 
 * Input Method & 中文支持
 
@@ -1722,6 +1781,36 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+begin_src emacs-lisp :tangle packages.el
 (package! claude-code-ide
   :recipe (:host github :repo "manzaltu/claude-code-ide.el"))
+#+end_src
+
+** codex-cli
+
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! codex-cli)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! codex-cli
+  ;; For MELPA: :ensure t
+  ;; For GitHub (Emacs 29+):
+  ;; :vc (:fetcher github :repo "bennfocus/codex-cli.el")
+  :bind (("C-c c t" . codex-cli-toggle)
+         ("C-c c s" . codex-cli-start)
+         ("C-c c q" . codex-cli-stop)
+         ("C-c c Q" . codex-cli-stop-all)
+         ("C-c c p" . codex-cli-send-prompt)
+         ("C-c c r" . codex-cli-send-region)
+         ("C-c c f" . codex-cli-send-file)
+         ;; Show-all layout + paging
+         ("C-c c a" . codex-cli-toggle-all)
+         ("C-c c n" . codex-cli-toggle-all-next-page)
+         ("C-c c b" . codex-cli-toggle-all-prev-page))
+  :init
+  (setq codex-cli-executable "codex"
+        codex-cli-terminal-backend 'vterm
+        codex-cli-side 'right
+        codex-cli-width 90))
 #+end_src
 
 ** copilot.el
