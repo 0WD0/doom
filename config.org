@@ -72,13 +72,13 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 
 是否解析符号链接
 #+begin_src emacs-lisp
-(setq find-file-visit-truename t)
+(setq! find-file-visit-truename t)
 #+end_src
 
 缩进风格
 #+begin_src emacs-lisp
-(setq indent-tabs-mode nil)
-(setq tab-width 4)
+(setq! indent-tabs-mode nil)
+(setq! tab-width 4)
 #+end_src
 
 ** bibilo 模块设置
@@ -241,6 +241,16 @@ telegram client for emacs
               ))
 #+end_src
 
+** bookmark+
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! bookmark+)
+#+end_src
+
+#+begin_src emacs-lisp
+(after! org
+  (require 'bookmark+))
+#+end_src
 * 基础设置
 
 ** Theme
@@ -338,7 +348,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 #+end_src
 
 #+begin_src emacs-lisp
-(add-hook 'org-mode-hook (lambda () (setq-local tab-width 8)))
+(add-hook! 'org-mode-hook (lambda () (setq-local tab-width 8)))
 (setq! org-directory "~/org"
       org-roam-directory "~/org/roam"
       org-roam-completion-everywhere t
@@ -385,6 +395,60 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 
 ** org-agenda
 
+*** org-agenda-prefix-format
+
+这里出现了一个中文不等宽的问题。。。
+用 fn:truncate-string-to-width 解决了
+我现在觉得中英文等宽有点不协调，之后再说了
+
+#+begin_src emacs-lisp
+(setq! org-agenda-prefix-format
+       '((agenda . " %i %(my/agenda-category 30)%?-12t% s")
+         (todo . " %i %(my/agenda-category 30) ")
+         (tags . " %i %(my/agenda-category 30) ")
+         (search . " %i %(my/agenda-category 30) ")))
+
+(after! org
+
+  (defun my/agenda-category (&optional len)
+    "Get category of item at point for agenda.
+
+Category is defined by one of the following items:
+
+- CATEGORY property
+- TITLE keyword
+- TITLE property
+- filename without directory and extension
+
+When LEN is a number, resulting string is padded right with
+spaces and then truncated with ... on the right if result is
+longer than LEN.
+
+Usage example:
+
+  (setq org-agenda-prefix-format
+        '((agenda . \" %(my/agenda-category) %?-12t %12s\")))
+
+Refer to `org-agenda-prefix-format' for more information."
+    (let* ((file-name (when buffer-file-name
+                        (file-name-sans-extension
+                         (file-name-nondirectory buffer-file-name))))
+           (title (org-get-title))
+           (category (org-get-category))
+           (result
+            (or (if (and
+                     title
+                     (string-equal category file-name))
+                    title
+                  category)
+                "")))
+      (if (numberp len)
+          (truncate-string-to-width result len nil ?\s t)
+        result)))
+  )
+#+end_src
+
+*** diary-course
 稍微讲一讲需求
 
 首先预先设定每学期的校历
@@ -1356,6 +1420,22 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 
 ** typst 集成
 
+*** typst-ts-mode
+#+begin_src emacs-lisp :tangle packages.el
+(package! typst-ts-mode
+  :recipe (:type git :host codeberg :repo "meow_king/typst-ts-mode"))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! typst-ts-mode
+  :custom
+  (typst-ts-watch-options "--open")
+  ;; (typst-ts-mode-grammar-location (expand-file-name "tree-sitter/libtree-sitter-typst.so" user-emacs-directory))
+  (typst-ts-enable-raw-blocks-highlight t)
+  :config
+  (keymap-set typst-ts-mode-map "C-c C-c" #'typst-ts-tmenu))
+#+end_src
+
 *** org-typst-advice
 :PROPERTIES:
 :CUSTOM_ID: org-typst-advice
@@ -1618,9 +1698,21 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
         '("C-h" "C-f" "C-b" "C-n" "C-p" "<tab>" "C-a" "C-s" "C-c")))
 #+end_src
 
+** cnfonts
+
+不好看啊，中英文等宽一点都不协调
+
+#+begin_src emacs-lisp :tangle packages.el
+;; (package! cnfonts)
+#+end_src
+
+#+begin_src emacs-lisp
+;; (setq! cnfonts-use-face-font-rescale t)
+#+end_src
+
 ** DONE vertico 拼音搜索集成
 
-经在 rime module 里实现了
+已经在 rime module 里实现了
 
 ** 输入法切换快捷键 :ARCHIVE:
 
@@ -1723,9 +1815,10 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 切换到 basedpyright
 
 #+begin_src emacs-lisp
-(setq lsp-pyright-langserver-command "basedpyright")
+(setq! lsp-pyright-langserver-command "basedpyright")
 #+end_src
 
+ 
 **** dape config
 自带的 debugpy 配置不能正常工作。。。
 
