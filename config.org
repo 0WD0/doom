@@ -401,6 +401,10 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
 用 fn:truncate-string-to-width 解决了
 我现在觉得中英文等宽有点不协调，之后再说了
 
+现在还会有会报 warning 的问题
+具体来说就是有很多
+⛔ Warning (org-element): ‘org-element-at-point’ cannot be used in non-Org buffer #<buffer *Org Agenda*> (org-agenda-mode)
+
 #+begin_src emacs-lisp
 (setq! org-agenda-prefix-format
        '((agenda . " %i %(my/agenda-category 30)%?-12t% s")
@@ -409,7 +413,6 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
          (search . " %i %(my/agenda-category 30) ")))
 
 (after! org
-
   (defun my/agenda-category (&optional len)
     "Get category of item at point for agenda.
 
@@ -436,9 +439,7 @@ Refer to `org-agenda-prefix-format' for more information."
            (title (org-get-title))
            (category (org-get-category))
            (result
-            (or (if (and
-                     title
-                     (string-equal category file-name))
+            (or (if (and title (string-equal category file-name))
                     title
                   category)
                 "")))
@@ -447,6 +448,9 @@ Refer to `org-agenda-prefix-format' for more information."
         result)))
   )
 #+end_src
+
+#+RESULTS:
+: my/agenda-category
 
 *** diary-course
 稍微讲一讲需求
@@ -628,18 +632,11 @@ diary-course 是一个 sexp diary entry
 ;; =========================
 ;; 主函数：diary-course
 ;; =========================
-;; 用法：
-;; (diary-course TERM-INDEX WEEKDAY FILTER-FN-OR-NIL)
-;; - TERM-INDEX: 第几个学期，从 1 开始，对应 my-academic-terms 的顺序
-;; - WEEKDAY: Emacs weekday, 0=周日 ... 6=周六
-;; - FILTER-FN-OR-NIL: 一个函数，接受周序号（正整数），返回 t/nil；
-;;   例如：只在单周上： (lambda (w) (= (mod w 2) 1))
-;;         双周上：       (lambda (w) (= (mod w 2) 0))
-;;         第1-16周：     (lambda (w) (and (>= w 1) (<= w 16)))
-;;   若为 nil，表示每周都有
-
 (defun diary-course (term-index weekday &optional filter-fn)
   "SEXP diary entry，用于 org-agenda。
+- TERM-INDEX: 第几个学期，从 1 开始，对应 my-academic-terms 的顺序
+- WEEKDAY: Emacs weekday, 0=周日 ... 6=周六
+- FILTER-FN: 一个函数，接受周序号（正整数），返回 t/nil；
 流程：
 1) 判定是否在 term-index 指定学期内；若不在，返回 nil
 2) 若为假期，直接返回 nil
@@ -664,24 +661,20 @@ diary-course 是一个 sexp diary entry
                 (let* ((term-name (or (plist-get term :name)
                                       (format "Term-%d" term-index))))
                   (format "%s: Week %d" term-name w))))))))))
-
-;; =========================
-;; 示例 diary 条目
-;; =========================
-;; 第1学期，每周一都有课：
-;; (diary-course 1 1 nil)
-;;
-;; 第1学期，每周三，单周上课：
-;; (diary-course 1 3 (lambda (w) (= (mod w 2) 1)))
-;;
-;; 第2学期，每周五，第1-16周：
-;; (diary-course 2 5 (lambda (w) (and (>= w 1) (<= w 16))))
 #+end_src
 
-备注：
-- weekday 使用 Emacs 的 0..6（周日..周六）
-- 如需调整“第几周”的定义，可修改 my-week-index-in-term
-- 根据你的校历替换 my-academic-terms 即可
+这里用 doom-package:llama 来写匿名函数能短很多！
+它是 doom-package:magit 的依赖（毕竟是同一个开发者）
+
+我觉得 llama 原版的 <fn:##> 写起来还是比 doom 改的 <fn:fn!> 方便的
+#+begin_src emacs-lisp :tangle packages.el
+(package! llama)
+#+end_src
+
+可以积累一下常用的函数
+~#'evenp~ 双周
+~#'oddp~ 单周
+~(##<= 4 % 8)~ 区间周
 
 *** sunrise/sunset
 
@@ -1703,12 +1696,18 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 不好看啊，中英文等宽一点都不协调
 
 #+begin_src emacs-lisp :tangle packages.el
-;; (package! cnfonts)
+(package! cnfonts)
 #+end_src
 
 #+begin_src emacs-lisp
-;; (setq! cnfonts-use-face-font-rescale t)
+(after! org
+  (require 'cnfonts)
+  (cnfonts-mode 1)
+  )
+(setq! cnfonts-use-face-font-rescale t)
 #+end_src
+
+事实上即使用了这个东西也做不到完美对齐
 
 ** DONE vertico 拼音搜索集成
 
