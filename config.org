@@ -106,6 +106,10 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
            )
           ))
 
+(after! org
+  (require 'citar-org)
+  (require 'citar-org-roam))
+
 (map! :map org-mode-map
       :localleader
       :prefix ("m" . "org-roam")
@@ -251,6 +255,16 @@ telegram client for emacs
 (after! org
   (require 'bookmark+))
 #+end_src
+
+** orgit
+#+begin_src emacs-lisp
+;; (setq! orgit-log-save-arguments t)
+#+end_src
+
+
+** jujutsu integration
+我的配置都放在了 [[doom-module:tools majutsu]]
+
 * 基础设置
 
 ** Theme
@@ -360,6 +374,24 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-edit-src-content-indentation 0
       org-link-search-must-match-exact-headline nil ;; 这东西的默认设置是真逆天
       )
+#+end_src
+
+#+begin_src emacs-lisp :tangle no
+(with-eval-after-load 'org
+  (let ((cn-punct "，。、：；！？“”‘’（）【】《》〈〉「」『』—……·"))
+    (setcar org-emphasis-regexp-components
+            (concat (car org-emphasis-regexp-components) cn-punct))
+    (setcar (nthcdr 1 org-emphasis-regexp-components)
+            (concat (nth 1 org-emphasis-regexp-components) cn-punct))
+    (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)))
+#+end_src
+
+#+begin_src emacs-lisp
+(after! org
+  (dolist (i '(0 1))
+    (setcar (nthcdr i org-emphasis-regexp-components)
+            (concat (nth i org-emphasis-regexp-components) "[:nonascii:]")))
+  (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components))
 #+end_src
 
 ** org-roam-capture
@@ -720,7 +752,7 @@ diary-course 是一个 sexp diary entry
        org-hide-emphasis-markers t
        org-pretty-entities t)
 #+end_src
-这个 [[help:org-pretty-entities]] 和 [[doom-module:ui emoji]] 有冲突
+这个 var:org-pretty-entities 和 [[doom-module:ui emoji]] 有冲突
 
 #+begin_src emacs-lisp :tangle packages.el
 (package! org-appear :pin "32ee50f8fdfa449bbc235617549c1bccb503cb09")
@@ -946,7 +978,7 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
 
 需要统一文件节点的形式
 
-需要借鉴 [[help:org-roam-refile]]
+需要借鉴 fn:org-roam-refile
 其实并不复杂，实现好了
 
 #+begin_src emacs-lisp
@@ -962,7 +994,7 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
       (org-copy-subtree 1 nil t))))
 #+end_src
 
-然后可以用 [[help:org-paste-subtree]] 进行粘贴
+然后可以用 fn:org-paste-subtree 进行粘贴
 
 **** 重排序
 然后根据某些规则安排顺序
@@ -973,9 +1005,6 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
 其实子树节点也可以显示一下副标题链？
 
 其实可以 join 一下同时查 id 和 title
-
-[[help:org-id-find-id-in-file]] 可以用这个函数来得到 id 位置
-应该很好用
 
 #+begin_src emacs-lisp :tangle no
 (defun my/org-roam-backlinks-of-id-old (id)
@@ -1051,14 +1080,14 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
 应该就是用 \pageref{sec:chapter_one} 这样的东西
 但是，我怎么在导出前知道他生成的 lable ？ 能不能修改链接导出的方式？
 
-[[help:org-latex-link]] 理论上可以advice这个函数
+fn:org-latex-link 理论上可以advice这个函数
 
 正确的做法应该是做一些配置，需要深入了解一下
 
-[[help:org-export-filter-link-functions]] 这是处理链接的函数表
+var:org-export-filter-link-functions 这是处理链接的函数表
 
 他的页码是从正文开始算的页码，然后我的目录也占页码的，这如何解决？
-让 [[help:org-latex-toc-command]] 设置目录用罗马数字就好了
+让 var:org-latex-toc-command 设置目录用罗马数字就好了
 #+begin_src emacs-lisp
 (setq org-latex-toc-command "\\pagenumbering{roman}\n\\tableofcontents\n\\newpage\n\\pagenumbering{arabic}\n\n")
 #+end_src
@@ -1722,7 +1751,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 但是在一些特殊情况下这个快捷键会已经被占用，有点难受
 比如说 org-roam-find 的 minibuffer 里
-调用的是 [[help:file-cache-minibuffer-complete]]
+调用的是 fn:file-cache-minibuffer-complete
 
 现在换用 charybdis 键盘之后 \ 离小拇指的距离变近了，就不需要这个配置了
 
