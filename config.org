@@ -2038,6 +2038,13 @@ telegram client for emacs
                           (format "+call cursor(%d,%d)" line (1+ col)) file)))))))
 #+end_src
 
+#+begin_src emacs-lisp
+(map! :leader
+      :prefix ("o" . "open")
+      :n "o" #'my/open-at-point
+      )
+#+end_src
+
 * Org-mode footnote hover preview :ATTACH:
 :PROPERTIES:
 :ID:       0908f342-a68a-4358-93da-70f99e7bc20c
