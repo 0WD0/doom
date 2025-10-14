@@ -2008,6 +2008,23 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 (setq treesit-font-lock-level 4)
 #+end_src
 
+** Open at Point
+
+#+begin_src emacs-lisp
+(defun my/open-at-point ()
+  "Open current file at current line with external editor."
+  (interactive)
+  (when-let ((file (buffer-file-name))
+             (line (line-number-at-pos)))
+    ;; Helix
+    (start-process "helix" nil "hx" (format "%s:%d" file line))
+    ;; 或者 VSCode
+    ;; (start-process "code" nil "code" "-g" (format "%s:%d" file line))
+    ;; 或者 Vim
+    ;; (start-process "vim" nil "vim" (format "+%d" line) file)
+    ))
+#+end_src
+
 * Org-mode footnote hover preview :ATTACH:
 :PROPERTIES:
 :ID:       0908f342-a68a-4358-93da-70f99e7bc20c
