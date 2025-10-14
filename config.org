@@ -2010,14 +2010,15 @@ telegram client for emacs
 ** Open at Point
 
 #+begin_src emacs-lisp
-(defun my/open-at-point ()
-  "Open current file at current line and column with external editor."
-  (interactive)
+(defvar my/last-editor nil
+  "Last editor used to open file at point.")
+
+(defun my/open-at-point-with (editor)
+  "Open current file at current line and column with EDITOR."
   (when-let* ((file (buffer-file-name))
               (line (line-number-at-pos))
-              (col (current-column))
-              (editor (completing-read "Choose editor: "
-                                       '("Helix" "VSCode" "Vim" "Zed"))))
+              (col (current-column)))
+    (setq my/last-editor editor)
     (pcase editor
       ("Helix"
        (start-process "helix" nil "kitty" "helix" (format "%s:%d:%d" file line col)))
@@ -2025,24 +2026,59 @@ telegram client for emacs
        (start-process "code" nil "code" "-g" (format "%s:%d:%d" file line (1+ col))))
       ("Zed"
        (start-process "zed" nil "zeditor" (format "%s:%d:%d" file line (1+ col))))
-      ("Vim"
+      ("Nvim"
        (let ((nvim-socket "/tmp/nvim-emacs.sock"))
-         ;; 检查 nvim 服务器是否运行
          (if (file-exists-p nvim-socket)
-             ;; 复用已有实例
              (start-process "nvim" nil "nvim" "--server" nvim-socket
                             "--remote-send"
                             (format ":e +call\\ cursor(%d,%d) %s<CR>" line (1+ col) file))
-           ;; 首次启动：在新 kitty 窗口中启动 nvim 服务器
            (start-process "nvim" nil "kitty" "nvim" "--listen" nvim-socket
                           (format "+call cursor(%d,%d)" line (1+ col)) file)))))))
+
+;; unused
+(defun my/open-at-point ()
+  "Open current file at current line and column with external editor."
+  (interactive)
+  (let ((editor (completing-read "Choose editor: "
+                                 '("Helix" "VSCode" "Nvim" "Zed"))))
+    (my/open-at-point-with editor)))
+
+(defun my/open-at-point-last ()
+  "Open current file with last used editor."
+  (interactive)
+  (if my/last-editor
+      (my/open-at-point-with my/last-editor)
+    (my/open-at-point)))
+
+(defun my/open-at-point-helix ()
+  "Open current file with Helix."
+  (interactive)
+  (my/open-at-point-with "Helix"))
+
+(defun my/open-at-point-vscode ()
+  "Open current file with VSCode."
+  (interactive)
+  (my/open-at-point-with "VSCode"))
+
+(defun my/open-at-point-nvim ()
+  "Open current file with Nvim."
+  (interactive)
+  (my/open-at-point-with "Nvim"))
+
+(defun my/open-at-point-zed ()
+  "Open current file with Zed."
+  (interactive)
+  (my/open-at-point-with "Zed"))
 #+end_src
 
 #+begin_src emacs-lisp
 (map! :leader
       :prefix ("o" . "open")
-      :n "o" #'my/open-at-point
-      )
+      :n "o" #'my/open-at-point-last
+      :n "h" #'my/open-at-point-helix
+      :n "v" #'my/open-at-point-vscode
+      :n "n" #'my/open-at-point-nvim
+      :n "z" #'my/open-at-point-zed)
 #+end_src
 
 * Org-mode footnote hover preview :ATTACH:
