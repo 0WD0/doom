@@ -2012,17 +2012,31 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 
 #+begin_src emacs-lisp
 (defun my/open-at-point ()
-  "Open current file at current line with external editor."
+  "Open current file at current line and column with external editor."
   (interactive)
-  (when-let ((file (buffer-file-name))
-             (line (line-number-at-pos)))
-    ;; Helix
-    (start-process "helix" nil "hx" (format "%s:%d" file line))
-    ;; 或者 VSCode
-    ;; (start-process "code" nil "code" "-g" (format "%s:%d" file line))
-    ;; 或者 Vim
-    ;; (start-process "vim" nil "vim" (format "+%d" line) file)
-    ))
+  (when-let* ((file (buffer-file-name))
+              (line (line-number-at-pos))
+              (col (current-column))
+              (editor (completing-read "Choose editor: "
+                                       '("Helix" "VSCode" "Vim" "Zed"))))
+    (pcase editor
+      ("Helix"
+       (start-process "helix" nil "kitty" "helix" (format "%s:%d:%d" file line col)))
+      ("VSCode"
+       (start-process "code" nil "code" "-g" (format "%s:%d:%d" file line (1+ col))))
+      ("Zed"
+       (start-process "zed" nil "zeditor" (format "%s:%d:%d" file line (1+ col))))
+      ("Vim"
+       (let ((nvim-socket "/tmp/nvim-emacs.sock"))
+         ;; 检查 nvim 服务器是否运行
+         (if (file-exists-p nvim-socket)
+             ;; 复用已有实例
+             (start-process "nvim" nil "nvim" "--server" nvim-socket
+                            "--remote-send"
+                            (format ":e +call\\ cursor(%d,%d) %s<CR>" line (1+ col) file))
+           ;; 首次启动：在新 kitty 窗口中启动 nvim 服务器
+           (start-process "nvim" nil "kitty" "nvim" "--listen" nvim-socket
+                          (format "+call cursor(%d,%d)" line (1+ col)) file)))))))
 #+end_src
 
 * Org-mode footnote hover preview :ATTACH:
