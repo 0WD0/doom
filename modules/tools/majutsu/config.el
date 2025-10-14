@@ -36,6 +36,7 @@
           :nv "C-r" #'majutsu-redo
           ;; :nv "N" #'majutsu-new
           :nv "s" #'majutsu-squash-transient
+          :nv "l" #'majutsu-log-transient
           :nv "d" #'majutsu-describe
           :nv "x" #'majutsu-abandon
 
