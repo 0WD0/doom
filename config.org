@@ -68,203 +68,6 @@ Doom 的所有包都默认绑定到特定提交哈希，并在版本更新时更
 ...或者 *全部* 包（不推荐，很可能导致错误）
 (unpin! t)
 
-* Misc
-
-是否解析符号链接
-#+begin_src emacs-lisp
-(setq! find-file-visit-truename t)
-#+end_src
-
-缩进风格
-#+begin_src emacs-lisp
-(setq! indent-tabs-mode nil)
-(setq! tab-width 4)
-#+end_src
-
-** bibilo 模块设置
-#+begin_src emacs-lisp
-(setq! citar-bibliography '("/home/disk/Books/mybib.bib")
-       citar-open-entry-function 'citar-open-entry-in-zotero)
-
-(map!
- :map org-mode-map
- :localleader
- (:prefix ("C" . "Citar")
-          (:prefix ("i" . "insert")
-           :desc "Insert reference" "r" #'citar-insert-reference
-           :desc "Insert citation" "c" #'citar-insert-citation
-           :desc "Insert bibtex" "b" #'citar-insert-bibtex
-           :desc "Insert keys" "k" #'citar-insert-keys
-           )
-          (:prefix ("o" . "open")
-           :desc "Open citar" "o" #'citar-open
-           :desc "Open files" "f" #'citar-open-files
-           :desc "Open notes" "n" #'citar-open-notes
-           :desc "Open note directly" "N" #'citar-open-note
-           :desc "Open links" "l" #'citar-open-links
-           :desc "Open entry in zotero" "e" #'citar-open-entry
-           )
-          ))
-
-(after! org
-  (require 'citar-org)
-  (require 'citar-org-roam))
-
-(map! :map org-mode-map
-      :localleader
-      :prefix ("m" . "org-roam")
-      "c" #'citar-org-roam-open-current-refs)
-;; 这个绑定在 citar 加载前不可用，之后需要改改
-
-;; 下面是 citar-map 里的默认绑定，我不知道这个 keymap 原来是用在哪里的
-
-;; RET citar-run-default-action
-;; a   citar-add-file-to-library
-;; r   citar-copy-reference
-
-;; R   citar-insert-reference
-;; b   citar-insert-bibtex
-;; c   citar-insert-citation
-;; k   citar-insert-keys
-;; o   citar-open
-;; e   citar-open-entry
-;; f   citar-open-files
-;; l   citar-open-links
-;; n   citar-open-notes
-
-;; 看源码看到的函数
-;; citar-open-note
-;;
-#+end_src
-
-
-** indent-bars
-
-如果 =indent-bars-starting-column= 为 0，会在 org-mode 的 latex 片段的前面一个空格显示竖线！
-
-#+begin_src emacs-lisp
-(after! indent-bars
-  (setq indent-bars-treesit-support t
-        indent-bars-starting-column nil))
-#+end_src
-
-** consult.el
-
-live preview
-
-来自官方文档
-#+begin_src emacs-lisp
-(after! consult
-  (consult-customize
-   consult-ripgrep consult-git-grep consult-grep consult-man
-   consult-bookmark consult-recent-file consult-xref
-   consult--source-bookmark consult--source-file-register
-   consult--source-recent-file consult--source-project-recent-file
-   ;; my/command-wrapping-consult    ;; disable auto previews inside my command
-   :preview-key '(:debounce 0.4 any) ;; Option 1: Delay preview
-   ;; :preview-key "M-."             ;; Option 2: Manual preview
-   ))
-#+end_src
-
-** nov.el
-
-epub 支持
-
-#+begin_src emacs-lisp :tangle packages.el
-(package! nov)
-#+end_src
-
-#+begin_src emacs-lisp
-(use-package! nov
-  :mode ("\\.epub\\'" . nov-mode)
-  :config
-  (setq nov-save-place-file (concat doom-cache-dir "nov-places")))
-#+end_src
-
-** telega.el
-
-telegram client for emacs
-
-#+begin_src emacs-lisp :tangle packages.el
-;; (package! company)
-(package! telega)
-#+end_src
-
-#+begin_src emacs-lisp
-(setq! telega-server-libs-prefix "/usr")
-(use-package! telega
-  :commands (telega)
-  :defer t
-  :init
-  (unless (display-graphic-p) (setq telega-use-images nil))
-  :config
-  (define-key global-map (kbd "C-c t") telega-prefix-map)
-  ;; (setq telega-proxies
-  ;;       (list '(:server "127.0.0.1" :port 1086 :enable t
-  ;;               :type (:@type "proxyTypeSocks5"))))
-  (set-popup-rule! "^\\*Telega Root"
-    :side 'right :size 100 :quit nil :modeline t)
-  (set-popup-rule! "^◀\\(\\[\\|<\\|{\\).*\\(\\]\\|>\\|}\\)"
-    :side 'right :size 100 :quit nil :modeline t)
-  (telega-mode-line-mode 1))
-#+end_src
-
-** IRC config
-
-#+begin_src emacs-lisp :tangle no
-(setq! circe-network-options
-      '(("Libera Chat"
-         :tls t
-         :nick "oWDo"
-         :sasl-username "my-nick"
-         :sasl-password "my-password"
-         :channels ("#emacs-circe")
-         )))
-#+end_src
-
-** solar.el
-
-#+begin_src emacs-lisp
-(setq! calendar-latitude 30.29365
-       calendar-longitude 120.16142)
-#+end_src
-
-** cal-china-x
-#+begin_src emacs-lisp :tangle packages.el
-(package! cal-china-x)
-#+end_src
-
-#+begin_src emacs-lisp
-(require 'cal-china-x)
-(setq! mark-holidays-in-calendar t)
-(setq! cal-china-x-important-holidays cal-china-x-chinese-holidays)
-(setq! cal-china-x-general-holidays '((holiday-lunar 1 15 "元宵节")))
-(setq! calendar-holidays
-      (append cal-china-x-important-holidays
-              cal-china-x-general-holidays
-              ))
-#+end_src
-
-** bookmark+
-
-#+begin_src emacs-lisp :tangle packages.el
-(package! bookmark+)
-#+end_src
-
-#+begin_src emacs-lisp
-(after! org
-  (require 'bookmark+))
-#+end_src
-
-** orgit
-#+begin_src emacs-lisp
-;; (setq! orgit-log-save-arguments t)
-#+end_src
-
-
-** jujutsu integration
-我的配置都放在了 [[doom-module:tools majutsu]]
-
 * 基础设置
 
 ** Theme
@@ -1820,6 +1623,15 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 *** TODO minibuffer 支持
 
+* VCS
+** orgit
+#+begin_src emacs-lisp
+;; (setq! orgit-log-save-arguments t)
+#+end_src
+
+** jujutsu integration
+我的配置都放在了 [[doom-module:tools majutsu]]
+
 * Program
 ** Languages
 *** C/C++
@@ -2008,6 +1820,193 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 (setq treesit-font-lock-level 4)
 #+end_src
 
+* Misc
+
+是否解析符号链接
+#+begin_src emacs-lisp
+(setq! find-file-visit-truename t)
+#+end_src
+
+缩进风格
+#+begin_src emacs-lisp
+(setq! indent-tabs-mode nil)
+(setq! tab-width 4)
+#+end_src
+
+** bibilo 模块设置
+#+begin_src emacs-lisp
+(setq! citar-bibliography '("/home/disk/Books/mybib.bib")
+       citar-open-entry-function 'citar-open-entry-in-zotero)
+
+(map!
+ :map org-mode-map
+ :localleader
+ (:prefix ("C" . "Citar")
+          (:prefix ("i" . "insert")
+           :desc "Insert reference" "r" #'citar-insert-reference
+           :desc "Insert citation" "c" #'citar-insert-citation
+           :desc "Insert bibtex" "b" #'citar-insert-bibtex
+           :desc "Insert keys" "k" #'citar-insert-keys
+           )
+          (:prefix ("o" . "open")
+           :desc "Open citar" "o" #'citar-open
+           :desc "Open files" "f" #'citar-open-files
+           :desc "Open notes" "n" #'citar-open-notes
+           :desc "Open note directly" "N" #'citar-open-note
+           :desc "Open links" "l" #'citar-open-links
+           :desc "Open entry in zotero" "e" #'citar-open-entry
+           )
+          ))
+
+(after! org
+  (require 'citar-org)
+  (require 'citar-org-roam))
+
+(map! :map org-mode-map
+      :localleader
+      :prefix ("m" . "org-roam")
+      "c" #'citar-org-roam-open-current-refs)
+;; 这个绑定在 citar 加载前不可用，之后需要改改
+
+;; 下面是 citar-map 里的默认绑定，我不知道这个 keymap 原来是用在哪里的
+
+;; RET citar-run-default-action
+;; a   citar-add-file-to-library
+;; r   citar-copy-reference
+
+;; R   citar-insert-reference
+;; b   citar-insert-bibtex
+;; c   citar-insert-citation
+;; k   citar-insert-keys
+;; o   citar-open
+;; e   citar-open-entry
+;; f   citar-open-files
+;; l   citar-open-links
+;; n   citar-open-notes
+
+;; 看源码看到的函数
+;; citar-open-note
+;;
+#+end_src
+
+** indent-bars
+
+如果 =indent-bars-starting-column= 为 0，会在 org-mode 的 latex 片段的前面一个空格显示竖线！
+
+#+begin_src emacs-lisp
+(after! indent-bars
+  (setq indent-bars-treesit-support t
+        indent-bars-starting-column nil))
+#+end_src
+
+** consult.el
+
+live preview
+
+来自官方文档
+#+begin_src emacs-lisp
+(after! consult
+  (consult-customize
+   consult-ripgrep consult-git-grep consult-grep consult-man
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-bookmark consult--source-file-register
+   consult--source-recent-file consult--source-project-recent-file
+   ;; my/command-wrapping-consult    ;; disable auto previews inside my command
+   :preview-key '(:debounce 0.4 any) ;; Option 1: Delay preview
+   ;; :preview-key "M-."             ;; Option 2: Manual preview
+   ))
+#+end_src
+
+** nov.el
+
+epub 支持
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! nov)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! nov
+  :mode ("\\.epub\\'" . nov-mode)
+  :config
+  (setq nov-save-place-file (concat doom-cache-dir "nov-places")))
+#+end_src
+
+** telega.el
+
+telegram client for emacs
+
+#+begin_src emacs-lisp :tangle packages.el
+;; (package! company)
+(package! telega)
+#+end_src
+
+#+begin_src emacs-lisp
+(setq! telega-server-libs-prefix "/usr")
+(use-package! telega
+  :commands (telega)
+  :defer t
+  :init
+  (unless (display-graphic-p) (setq telega-use-images nil))
+  :config
+  (define-key global-map (kbd "C-c t") telega-prefix-map)
+  ;; (setq telega-proxies
+  ;;       (list '(:server "127.0.0.1" :port 1086 :enable t
+  ;;               :type (:@type "proxyTypeSocks5"))))
+  (set-popup-rule! "^\\*Telega Root"
+    :side 'right :size 100 :quit nil :modeline t)
+  (set-popup-rule! "^◀\\(\\[\\|<\\|{\\).*\\(\\]\\|>\\|}\\)"
+    :side 'right :size 100 :quit nil :modeline t)
+  (telega-mode-line-mode 1))
+#+end_src
+
+** IRC config
+
+#+begin_src emacs-lisp :tangle no
+(setq! circe-network-options
+      '(("Libera Chat"
+         :tls t
+         :nick "oWDo"
+         :sasl-username "my-nick"
+         :sasl-password "my-password"
+         :channels ("#emacs-circe")
+         )))
+#+end_src
+
+** solar.el
+
+#+begin_src emacs-lisp
+(setq! calendar-latitude 30.29365
+       calendar-longitude 120.16142)
+#+end_src
+
+** cal-china-x
+#+begin_src emacs-lisp :tangle packages.el
+(package! cal-china-x)
+#+end_src
+
+#+begin_src emacs-lisp
+(require 'cal-china-x)
+(setq! mark-holidays-in-calendar t)
+(setq! cal-china-x-important-holidays cal-china-x-chinese-holidays)
+(setq! cal-china-x-general-holidays '((holiday-lunar 1 15 "元宵节")))
+(setq! calendar-holidays
+      (append cal-china-x-important-holidays
+              cal-china-x-general-holidays
+              ))
+#+end_src
+
+** bookmark+
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! bookmark+)
+#+end_src
+
+#+begin_src emacs-lisp
+(after! org
+  (require 'bookmark+))
+#+end_src
+
 ** Open at Point
 
 #+begin_src emacs-lisp
@@ -2050,7 +2049,7 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 
 在 footnote 那边的链接该显示原文的相关内容，或者不搞预览，暂时不管
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 ;;; Org-mode footnote hover preview - Enhanced implementation inspired by lsp-ui-doc
 (use-package! posframe :defer t)
 
