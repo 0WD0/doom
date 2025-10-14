@@ -465,24 +465,24 @@ Usage example:
         '((agenda . \" %(my/agenda-category) %?-12t %12s\")))
 
 Refer to `org-agenda-prefix-format' for more information."
-    (let* ((file-name (when buffer-file-name
-                        (file-name-sans-extension
-                         (file-name-nondirectory buffer-file-name))))
-           (title (org-get-title))
-           (category (org-get-category))
-           (result
-            (or (if (and title (string-equal category file-name))
-                    title
-                  category)
-                "")))
-      (if (numberp len)
-          (truncate-string-to-width result len nil ?\s t)
-        result)))
+    (if (not (derived-mode-p 'org-mode))
+        (if (numberp len)
+            (make-string len ?\s))
+      (let* ((file-name (when buffer-file-name
+                          (file-name-sans-extension
+                           (file-name-nondirectory buffer-file-name))))
+             (title (org-get-title))
+             (category (org-get-category))
+             (result
+              (or (if (and title (string-equal category file-name))
+                      title
+                    category)
+                  "")))
+        (if (numberp len)
+            (truncate-string-to-width result len nil ?\s t)
+          result))))
   )
 #+end_src
-
-#+RESULTS:
-: my/agenda-category
 
 *** diary-course
 稍微讲一讲需求
