@@ -2086,7 +2086,10 @@ telegram client for emacs
 (defvar aihubmix-api-key
   (or (getenv "AIHUBMIX_API_KEY") 
       "")
-  "AiMixHub API key.")
+  "AiHubMix API key.
+https://aihubmix.com/
+好歹也是推广了，给个优惠不过分吧
+")
 #+end_src
 
 #+begin_src emacs-lisp
@@ -2104,6 +2107,15 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
                               (when v (cons ,(car kv) v))))
                          kvs)))))))
 
+;; 如果只需要静态常量（编译/加载时确定）
+;; 这种宏在加载时就把常量“拼接”好：
+(defmacro gptel-static-header+ (&rest pairs)
+  `(lambda ()
+     (let ((key (gptel--get-api-key)))
+       (append
+        (when key (list (cons "Authorization" (concat "Bearer " key))))
+        ',pairs))))
+
 (setq gptel-backend
       (gptel-make-openai "AiHubMix"
         :host "api.aihubmix.com"
@@ -2120,15 +2132,6 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
                  )       
         :models '((gpt-4o      :capabilities (media tool json url))
                   (gpt-4o-mini :capabilities (media tool json url)))))
-
-;; 如果只需要静态常量（编译/加载时确定）
-;; 这种宏在加载时就把常量“拼接”好：
-(defmacro gptel-static-header+ (&rest pairs)
-  `(lambda ()
-     (let ((key (gptel--get-api-key)))
-       (append
-        (when key (list (cons "Authorization" (concat "Bearer " key))))
-        ',pairs))))
 #+end_src
 
 * Org-mode footnote hover preview :ATTACH:
