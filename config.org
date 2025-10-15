@@ -2082,6 +2082,8 @@ telegram client for emacs
 #+end_src
 
 * LLM (gptel)
+
+** api-keys
 #+begin_src emacs-lisp
 (defvar aihubmix-api-key
   (or (getenv "AIHUBMIX_API_KEY") 
@@ -2092,6 +2094,7 @@ https://aihubmix.com/
 ")
 #+end_src
 
+** tool functions
 #+begin_src emacs-lisp
 (defmacro gptel-header+ (&rest kvs)
   "Build a :header function with Authorization plus extra key-value forms.
@@ -2116,6 +2119,10 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
         (when key (list (cons "Authorization" (concat "Bearer " key))))
         ',pairs))))
 
+#+end_src
+
+** backend
+#+begin_src emacs-lisp
 (setq gptel-backend
       (gptel-make-openai "AiHubMix"
         :host "api.aihubmix.com"
@@ -2126,11 +2133,13 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
                  ("APP-Code"       "MLTG2087") ;这是在白嫖 cherry-studio 的优惠码
                  ;; 下面是示例，最近写宏写爽了
                  ;; ("X-Org-ID"      "42")                         
-                 ;; ("X-Trace"       (format-time-string "%s"))   
+                 ;; ("X-Trace"       (format-time-string "%s")   
                  ;; ("X-Proxy"       (getenv "HTTP_PROXY")
                  ;; ("X-Proxy"       (getenv "HTTP_PROXY")
                  )       
-        :models '((gpt-4o      :capabilities (media tool json url))
+        :models '(
+                  (gpt-5      :capabilities (media tool json url))
+                  (gpt-4o      :capabilities (media tool json url))
                   (gpt-4o-mini :capabilities (media tool json url)))))
 #+end_src
 
