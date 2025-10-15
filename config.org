@@ -2081,6 +2081,56 @@ telegram client for emacs
       :n "z" #'my/open-at-point-zed)
 #+end_src
 
+* LLM (gptel)
+#+begin_src emacs-lisp
+(defvar aihubmix-api-key
+  (or (getenv "AIHUBMIX_API_KEY") 
+      "")
+  "AiMixHub API key.")
+#+end_src
+
+#+begin_src emacs-lisp
+(defmacro gptel-header+ (&rest kvs)
+  "Build a :header function with Authorization plus extra key-value forms.
+KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at request time."
+  `(lambda ()
+     (let ((key (gptel--get-api-key)))
+       (delq nil
+             (append
+              (when key (list (cons "Authorization" (concat "Bearer " key))))
+              (list
+               ,@(mapcar (lambda (kv)
+                           `(let ((v ,(cadr kv)))
+                              (when v (cons ,(car kv) v))))
+                         kvs)))))))
+
+(setq gptel-backend
+      (gptel-make-openai "AiHubMix"
+        :host "api.aihubmix.com"
+        :endpoint "/v1/chat/completions"
+        :key 'aihubmix-api-key
+        :stream t
+        :header (gptel-header+
+                 ("APP-Code"       "MLTG2087") ;这是在白嫖 cherry-studio 的优惠码
+                 ;; 下面是示例，最近写宏写爽了
+                 ;; ("X-Org-ID"      "42")                         
+                 ;; ("X-Trace"       (format-time-string "%s"))   
+                 ;; ("X-Proxy"       (getenv "HTTP_PROXY")
+                 ;; ("X-Proxy"       (getenv "HTTP_PROXY")
+                 )       
+        :models '((gpt-4o      :capabilities (media tool json url))
+                  (gpt-4o-mini :capabilities (media tool json url)))))
+
+;; 如果只需要静态常量（编译/加载时确定）
+;; 这种宏在加载时就把常量“拼接”好：
+(defmacro gptel-static-header+ (&rest pairs)
+  `(lambda ()
+     (let ((key (gptel--get-api-key)))
+       (append
+        (when key (list (cons "Authorization" (concat "Bearer " key))))
+        ',pairs))))
+#+end_src
+
 * Org-mode footnote hover preview :ATTACH:
 :PROPERTIES:
 :ID:       0908f342-a68a-4358-93da-70f99e7bc20c
