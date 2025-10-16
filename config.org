@@ -2074,6 +2074,7 @@ telegram client for emacs
 #+begin_src emacs-lisp
 (map! :leader
       :prefix ("o" . "open")
+      :n "O" #'my/open-at-point
       :n "o" #'my/open-at-point-last
       :n "h" #'my/open-at-point-helix
       :n "v" #'my/open-at-point-vscode
