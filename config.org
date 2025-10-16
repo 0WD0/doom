@@ -2083,6 +2083,11 @@ telegram client for emacs
 
 * LLM (gptel)
 
+** config
+#+begin_src emacs-lisp
+(setq! gptel-default-mode #'org-mode)
+#+end_src
+
 ** api-keys
 #+begin_src emacs-lisp
 (defvar aihubmix-api-key
@@ -2123,7 +2128,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 
 ** backend
 #+begin_src emacs-lisp
-(setq gptel-backend
+(setq! gptel-backend
       (gptel-make-openai "AiHubMix"
         :host "api.aihubmix.com"
         :endpoint "/v1/chat/completions"
@@ -2141,6 +2146,8 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
                   (gpt-5      :capabilities (media tool json url))
                   (gpt-4o      :capabilities (media tool json url))
                   (gpt-4o-mini :capabilities (media tool json url)))))
+
+(setq! gptel-model 'gpt-5)
 #+end_src
 
 * Org-mode footnote hover preview :ATTACH:
