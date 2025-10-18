@@ -686,7 +686,9 @@ diary-course 是一个 sexp diary entry
 
 #+begin_src emacs-lisp
 (defvar my/org-roam-export-tag nil)
-(defvar my/org-roam-export-tags '("CP" "CF" "contest"))
+
+;; 还没有适配预先设置的
+(defvar my/org-roam-export-tags '("CP" "CF" "HDU" "nowcoder" "atcoder" "contest"))
 
 ;; Helper function to handle both single tag and multiple tags
 (defun my/normalize-tags (tags)
@@ -1527,11 +1529,11 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 不好看啊，中英文等宽一点都不协调
 
-#+begin_src emacs-lisp :tangle packages.el
+#+begin_src emacs-lisp :tangle no
 (package! cnfonts)
 #+end_src
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 (after! org
   (require 'cnfonts)
   (cnfonts-mode 1)
@@ -1631,6 +1633,15 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 ** jujutsu integration
 我的配置都放在了 [[doom-module:tools majutsu]]
+
+
+#+begin_src emacs-lisp
+(setq! majutsu-log-signature
+       '[:call 'format_short_signature [:author]])
+
+
+(setq! majutsu-message-input-method 'script)
+#+end_src
 
 * Program
 ** Languages
