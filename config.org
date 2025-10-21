@@ -688,7 +688,7 @@ diary-course 是一个 sexp diary entry
 (defvar my/org-roam-export-tag nil)
 
 ;; 还没有适配预先设置的
-(defvar my/org-roam-export-tags '("CP" "CF" "HDU" "nowcoder" "atcoder" "contest"))
+(defvar my/org-roam-export-tags '("CP" "CF" "HDU" "nowcoder" "atcoder" "luogu" "contest"))
 
 ;; Helper function to handle both single tag and multiple tags
 (defun my/normalize-tags (tags)
@@ -713,6 +713,7 @@ non-Chinese characters (like English letters) are preserved at their original po
 之后需要看看怎么扩展到多个 tag
 已经完成多 tag 支持！现在可以这样使用：
 
+#+begin_src elisp :tangle no
 ;; 使用单个 tag
 (my/org-roam-export-top-tagged-subtrees-to-pdf "CP")
 
@@ -721,6 +722,12 @@ non-Chinese characters (like English letters) are preserved at their original po
 
 ;; 交互式输入多个 tag，用空格或逗号分隔
 ;; 例如：CP CF contest
+#+end_src
+
+以后可以直接用这个
+#+begin_src elisp :tangle no
+(my/org-roam-export-top-tagged-subtrees-to-pdf my/org-roam-export-tags)
+#+end_src
 
 **** 提取主节点
 我这其实和 [[id:8e646f0b-aa8e-470b-9dd9-d70b8693dd3c][lazyblorg]] 干了差不多的事情，但是它没有基于 org-roam
@@ -1454,11 +1461,16 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 还有比如说在侧边打开而不是替换原窗口
 
-** ox-hugo :ARCHIVE:
+** ox-hugo 
 #+begin_src emacs-lisp :tangle no
 (after! org
   (setq org-id-extra-files (append (directory-files-recursively org-roam-directory "\.org$")
                                     (list (expand-file-name "config.org" doom-user-dir)))))
+#+end_src
+
+#+begin_src elisp :tangle packages.el
+(package! org-roam-hugo
+  :recipe (:local-repo "org-roam-hugo"))
 #+end_src
 
 ** Deft :ARCHIVE:
@@ -1659,6 +1671,77 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 **** 运行与调试
 
 我希望使用 gdb 调试，怎么写 dape 配置？
+
+#+begin_src emacs-lisp
+(after! dape
+  (add-to-list 'dape-configs
+	       `(debugpy-flask
+	         modes (python-mode jinja2-mode)
+	         command "python"
+	         command-args ["-m" "debugpy.adapter" "--host" "0.0.0.0" "--port" :autoport]
+	         port :autoport
+	         :type "python"
+	         :request "launch"
+	         :module "flask"
+	         :args ["--app" "src" "run" "--no-debugger" "--no-reload"]
+	         :console "integratedTerminal"
+	         :showReturnValue t
+	         :justMyCode nil
+	         :jinja t
+	         :cwd dape-cwd-fn))
+
+
+  (defun my/dape-contest--buffer-src (config)
+    (or (buffer-file-name (or (plist-get config :buffer) (current-buffer)))
+        (user-error "当前 buffer 还没有保存成文件")))
+
+  (defun my/dape-contest--cwd (config)
+    (or (dape-config-get config :cwd)
+        (dape-cwd)))
+
+  (defun my/dape-contest--binary (config)
+    (let* ((src  (my/dape-contest--buffer-src config))
+           (root (my/dape-contest--cwd config))
+           (prob (file-name-base src))
+           (candidates
+            (list (expand-file-name (format "build/%s.debug" prob) root)
+                  (expand-file-name (format "build/%s" prob) root)
+                  (expand-file-name prob root)
+                  (expand-file-name "a.out" root))))
+      (or (seq-find #'file-exists-p candidates)
+          (user-error "没找到可执行文件，先在 %s 里运行 `make PROB=%s`"
+                      root prob))))
+
+  (defun my/dape-contest--prep (config)
+    (let* ((src (my/dape-contest--buffer-src config))
+           (prob (file-name-base src))
+           (default-directory (my/dape-contest--cwd config))
+           ;; 如果你只用简化版 Makefile，把命令改成 make PROB=%s DEBUG=1
+           (cmd (if (file-exists-p (expand-file-name "Makefile" default-directory))
+                    (format "make debug PROB=%s" prob)
+                  nil)))
+      (when cmd
+        (let ((status (call-process-shell-command cmd nil "*dape-make*" t)))
+          (unless (zerop status)
+            (user-error "构建失败，查看 *dape-make* buffer"))))))
+
+  (add-to-list 'dape-configs
+               '(contest-gdb
+                 modes (c-mode c-ts-mode c++-mode c++-ts-mode)
+                 ensure my/dape-contest--buffer-src
+                 fn (lambda (config)
+                      (let ((program (my/dape-contest--binary config))
+                            (cwd (my/dape-contest--cwd config)))
+                        (plist-put (plist-put config :program program) :cwd cwd)))
+                 :pre-function my/dape-contest--prep
+                 command "gdb"
+                 command-args ("--interpreter=dap")
+                 :type "gdb"
+                 :request "launch"
+                 :stopAtBeginningOfMainSubprogram nil
+                 :args []))
+  )
+#+end_src
 
 *** Python
 
