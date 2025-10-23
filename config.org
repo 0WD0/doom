@@ -1002,14 +1002,20 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
         ;; Enhanced code blocks with line numbers and syntax highlighting
         (insert "#+latex_header: \\usepackage{listings}\n")
         (insert "#+latex_header: \\usepackage{xcolor}\n")
+        (insert "#+latex_header: \\usepackage{enumitem}\n")
+        (insert "#+latex_header: \\usepackage{titlesec}\n")
         (insert "#+latex_header: \\definecolor{codegreen}{rgb}{0,0.6,0}\n")
         (insert "#+latex_header: \\definecolor{codegray}{rgb}{0.5,0.5,0.5}\n")
         (insert "#+latex_header: \\definecolor{codepurple}{rgb}{0.58,0,0.82}\n")
         (insert "#+latex_header: \\definecolor{backcolour}{rgb}{0.95,0.95,0.92}\n")
-        ;; Compact spacing and smaller font
-        (insert "#+latex_header: \\renewcommand{\\normalsize}{\\fontsize{9}{10.8}\\selectfont}\n")
+        ;; Compact spacing, fonts, and layout tweaks
+        (insert "#+latex_header: \\renewcommand{\\normalsize}{\\fontsize{9}{9.5}\\selectfont}\n")
         (insert "#+latex_header: \\setlength{\\parindent}{0pt}\n")
-        (insert "#+latex_header: \\setlength{\\parskip}{0.1em}\n")
+        (insert "#+latex_header: \\setlength{\\parskip}{0pt plus 0.2em}\n")
+        (insert "#+latex_header: \\setlist{topsep=0.3em,itemsep=0.2em,parsep=0em,partopsep=0em}\n")
+        (insert "#+latex_header: \\titlespacing*{\\section}{0pt}{0.6em}{0.3em}\n")
+        (insert "#+latex_header: \\titlespacing*{\\subsection}{0pt}{0.5em}{0.25em}\n")
+        (insert "#+latex_header: \\titlespacing*{\\subsubsection}{0pt}{0.4em}{0.2em}\n")
         ;; Geometry must be last to avoid being overridden
         (insert "#+latex_header: \\usepackage[margin=0.3in,top=0.25in,bottom=0.5in,left=0.2in,right=0.2in]{geometry}\n\n")
         ;; Sort top-nodes by title in dictionary order (Chinese titles converted to pinyin)
