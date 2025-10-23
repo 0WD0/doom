@@ -858,7 +858,7 @@ TAGS can be a string (single tag) or a list of strings (multiple tags)."
       (let* ((id (car row))
              (title (org-roam-node-title (org-roam-node-from-id id))))
         (push (list id title) res)))
-    (nreverse res)))
+    (-uniq (nreverse res))))
 #+end_src
 
 #+begin_src emacs-lisp
