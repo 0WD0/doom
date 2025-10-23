@@ -1644,6 +1644,14 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 *** TODO minibuffer 支持
 
 * VCS
+
+** magit
+#+begin_src emacs-lisp :tangle no
+(setq! git-commit-major-mode #'org-mode)
+#+end_src
+
+注意当这里设为 org-mode 的时候，无法正常高亮！
+
 ** orgit
 #+begin_src emacs-lisp
 ;; (setq! orgit-log-save-arguments t)

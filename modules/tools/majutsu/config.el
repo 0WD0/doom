@@ -49,8 +49,8 @@
           :nv "M" #'majutsu-diffedit-smerge
           :nv "?" #'majutsu-mode-transient
 
-	  :nv "]" #'magit-section-forward-sibling
-	  :nv "[" #'magit-section-backward-sibling
+          :nv "]" #'magit-section-forward-sibling
+          :nv "[" #'magit-section-backward-sibling
           ;; Make RET consistent even if upstream changes default
           ;; :n  [remap magit-visit-thing] #'majutsu-enter-dwim
           :n  "RET" #'majutsu-enter-dwim
