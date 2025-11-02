@@ -1196,6 +1196,25 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
                 #'org-babel-C-execute/filter-args)))
 #+end_src
 
+*** add =#pragma once= for hpp files
+#+begin_src elisp
+(after! org
+  (defun my/org-tangle-hpp-ensure-pragma-once ()
+    (when (and buffer-file-name
+               (string-suffix-p ".hpp" buffer-file-name))
+      (save-excursion
+        (goto-char (point-min))
+        (unless (looking-at-p "\\s-*#pragma once\\>")
+          ;; 删除开头已有的 pragma once，避免重复
+          (when (re-search-forward "^#pragma once\\s-*$" nil t)
+            (replace-match ""))
+          (goto-char (point-min))
+          (insert "#pragma once\n\n")
+          (save-buffer)))))
+
+  (add-hook 'org-babel-post-tangle-hook #'my/org-tangle-hpp-ensure-pragma-once))
+#+end_src
+
 ** latex 集成
 *** 添加 LaTeX 包
 
