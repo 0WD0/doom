@@ -128,6 +128,69 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 (setq! display-line-numbers-type t)
 #+end_src
 
+** Mail
+
+#+begin_src elisp :tangle packages.el
+(package! mu4e)
+#+end_src
+
+#+begin_src elisp
+(add-load-path! "/usr/share/emacs/site-lisp/mu4e/")
+#+end_src
+see [[https://github.com/doomemacs/doomemacs/issues/7885][doomemacs/doomemacs#7885 Can't open mu4e]]
+
+#+begin_src elisp :tangle no
+(setq! +mu4e-gmail-accounts '(("wd.1105848296@gmail.com" . "gmail")))
+#+end_src
+
+#+begin_src elisp
+(set-email-account!
+ "qq"
+ '((user-full-name        . "0WD0")
+   (user-mail-address     . "1105848296@qq.com")
+   (smtpmail-smtp-user    . "1105848296@qq.com")
+   (smtpmail-smtp-server  . "smtp.qq.com")
+   (smtpmail-smtp-service . 465)
+   (smtpmail-stream-type  . ssl)
+   (mu4e-drafts-folder    . "/qq/Drafts")
+   (mu4e-sent-folder      . "/qq/Sent Messages")
+   (mu4e-trash-folder     . "/qq/Deleted Messages")
+   (mu4e-maildir-shortcuts . (
+                              ("/qq/INBOX"       . ?i)
+                              ("/qq/Sent Messages"        . ?s)))
+   (+mu4e-personal-addresses . '("1105848296@qq.com")))
+ t) ; true 表示默认账号
+
+(set-email-account!
+ "hdu"
+ '((user-full-name        . "WD")
+   (user-mail-address     . "24062034@hdu.edu.cn")
+   (smtpmail-smtp-user    . "24062034@hdu.edu.cn")
+   (smtpmail-smtp-server  . "smtp.hdu.edu.cn")
+   (smtpmail-smtp-service . 465)
+   (smtpmail-stream-type  . ssl)
+   (mu4e-drafts-folder    . "/hdu/草稿箱")
+   (mu4e-sent-folder      . "/hdu/已发送")
+   (mu4e-trash-folder     . "/hdu/已删除")
+   (mu4e-maildir-shortcuts . (("/hdu/INBOX"       . ?i)
+                              ("/hdu/已发送"        . ?s)))
+   (+mu4e-personal-addresses . '("24062034@hdu.edu.cn"))))
+
+(set-email-account!
+ "gmail"
+ '((user-full-name        . "0WD0")
+   (user-mail-address     . "wd.1105848296@gmail.com")
+   (smtpmail-smtp-user    . "wd.1105848296@gmail.com")
+   (smtpmail-smtp-server  . "smtp.gmail.com")
+   (smtpmail-smtp-service . 587)
+   (smtpmail-stream-type  . starttls)
+   (mu4e-drafts-folder    . "/gmail/[Gmail]/草稿")
+   (mu4e-sent-folder      . "/gmail/[Gmail]/已发邮件")
+   (mu4e-trash-folder     . "/gmail/[Gmail]/已删除邮件")
+   (mu4e-refile-folder    . "/gmail/[Gmail]/所有邮件")
+   (+mu4e-personal-addresses . '("wd.1105848296@gmail.com"))))
+#+end_src
+
 ** Line Wrap
 
 [[https://www.emacswiki.org/emacs/LineWrap][EmacsWiki: Line Wrap]]
