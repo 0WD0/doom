@@ -141,21 +141,6 @@ wasn't installed correctly. Font issues are rarely Doom issues!
 (modify-category-entry 58 ?|)          ;; ASCII 58, i.e. ":"
 #+end_src
 
-* UI
-
-** neoscoll
-
-我自己写的平滑滚动插件
-
-#+begin_src emacs-lisp
-(setq! neoscroll-line-step 4
-       neoscroll-easing 'linear
-       ;; neoscroll-line-duration 0.01
-       ;; neoscroll-page-duration 0.10
-       ;; neoscroll-scroll-duration 0.10
-       )
-#+end_src
-
 * org-mode
 
 org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多配置选项来增强 org-mode 的功能。
@@ -682,6 +667,11 @@ diary-course 是一个 sexp diary entry
 
 *** 算法竞赛模板导出工具
 
+以后可以直接用这个
+#+begin_src elisp :tangle no
+(my/org-roam-export-top-tagged-subtrees-to-pdf my/org-roam-export-tags)
+#+end_src
+
 **** 关键tag
 
 #+begin_src emacs-lisp
@@ -722,11 +712,6 @@ non-Chinese characters (like English letters) are preserved at their original po
 
 ;; 交互式输入多个 tag，用空格或逗号分隔
 ;; 例如：CP CF contest
-#+end_src
-
-以后可以直接用这个
-#+begin_src elisp :tangle no
-(my/org-roam-export-top-tagged-subtrees-to-pdf my/org-roam-export-tags)
 #+end_src
 
 **** 提取主节点
@@ -2258,6 +2243,90 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 
 (setq! gptel-model 'gpt-5)
 #+end_src
+
+* org-capture configs for Project Notes 
+
+基于 dir-locals 的 org-capture 配置的优势在于：完全不用担心按键冲突，同一个键对不同的项目可以有不同的跳转效果
+我甚至可以选择让他在某些目录无视 base-templates
+
+注意，他会无视软连接！！！
+如果 /home/win/Dev 有一个软连接到 ~/Dev
+不能写 ~/Dev 只能写原本的链接
+
+#+begin_src elisp 
+(require 'org-roam) ;; 这里的确没办法，如果要在 capture 里用 org-roam-node-fined 就得先加载，不然打开的第一个 buffer 得不到正确的 templates
+(defvar my/org-capture-base-templates
+  '(("r" "org-roam capture" entry #'org-roam-node-find "* %u %?\n%i\n%a" :prepend t)
+    ;; ("t" "Task" entry (file "~/org/inbox.org") "* TODO %?")
+    )
+  "Fallback templates used when no directory-specific override exists.")
+
+(defun my/org--merge-template (template)
+  "Return base templates with TEMPLATE replacing any entry with the same key."
+  (let ((key (car template)))
+    (cons template
+          (cl-remove-if (lambda (tpl) (equal (car tpl) key))
+                        (copy-tree my/org-capture-base-templates)))))
+
+(defun my/org-register-capture-dir (dir template)
+  "Associate DIR with TEMPLATE via dir-local variables for org-capture."
+  (let* ((abs-dir (file-name-as-directory (expand-file-name dir)))
+         (class (intern (concat "my/org-" (md5 abs-dir))))
+         (templates (my/org--merge-template template)))
+    (dir-locals-set-class-variables
+     class
+     `((nil . ((org-capture-templates . ,templates)))))
+    (dir-locals-set-directory-class abs-dir class)
+    class))
+  #+end_src
+  
+** examples
+#+begin_src elisp :tangle no
+(my/org-register-capture-dir
+  "~/work/projectA"
+  '("r" "ProjectA Reading"
+    entry (file "~/work/projectA/notes.org")
+    "* TODO %? :projA:"))
+
+ (my/org-register-capture-dir
+  "~/work/projectB"
+  '("r" "ProjectB Reading"
+    entry (file+headline "~/work/projectB/read.org" "Inbox")
+    "* TODO %? :projB:"))
+#+end_src
+
+** magit
+#+begin_src elisp
+(my/org-register-capture-dir
+ "/home/_WD_/.config/emacs/.local/straight/repos/magit"
+ '("i" "magit dev notes inbox" entry (id "823e85ea-5028-4c57-bfca-b7c76bcf0f9a") "* %?\n%a\n"))
+#+end_src
+
+** jj
+#+begin_src elisp
+(my/org-register-capture-dir
+ "/home/win/Dev/jj"
+ '("i" "jujutsu dev notes inbox" entry (id "c5b88ac7-c03b-4f60-a5b1-c2b01465b21d") "* %?\n%a\n"))
+#+end_src
+
+previous version
+#+begin_src elisp :tangle no
+(dir-locals-set-class-variables
+ 'jj-proj
+ '((nil . ((org-capture-templates . (("j" "jujutsu dev notes" entry (id "c569d17b-0044-4029-bb28-426332d84f0d") "* %?\n%i\n%a" :prepend t)))))))
+
+(dir-locals-set-directory-class
+ (expand-file-name "/home/win/Dev/jj/") 'jj-proj)
+#+end_src
+
+** majutsu
+
+#+begin_src elisp
+(my/org-register-capture-dir
+ "~/.config/emacs/.local/straight/repos/majutsu"
+ '("i" "majutsu dev notes inbox" entry (id "37acfc0e-808a-4952-9289-a71f21d58047") "* %?\n%a\n" :prepend t))
+#+end_src
+
 
 * Org-mode footnote hover preview :ATTACH:
 :PROPERTIES:
