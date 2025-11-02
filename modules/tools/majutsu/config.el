@@ -54,4 +54,13 @@
           ;; Make RET consistent even if upstream changes default
           ;; :n  [remap magit-visit-thing] #'majutsu-enter-dwim
           :n  "RET" #'majutsu-enter-dwim
-	  )))
+	  )
+    (map! :map majutsu-diff-mode-map
+          :nv "RET" #'majutsu-enter-dwim
+          )
+    (map! :localleader
+          :map majutsu-mode-map
+          :nv "n" #'majutsu-new
+          :nv "g" #'majutsu-git-transient
+          )
+    ))
