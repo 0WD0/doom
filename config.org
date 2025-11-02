@@ -245,38 +245,18 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
   (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components))
 #+end_src
 
-** org-roam-capture
-
-#+begin_src emacs-lisp :tangle no
-(setq! org-roam-node-display-template
-      (concat "${title:*} "
-              (propertize "${tags:10}" 'face 'org-tag)))
-#+end_src
-
-
-#+begin_src emacs-lisp 
-(after! org
-  
-  ;; (add-to-list 'org-roam-capture-templates
-  ;;              '("l" "log" entry
-  ;;                "* ${title}\n\n%?"
-  ;;                ;; Ensure to have a single node with this title/alias below.
-  ;;                ;;            ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓
-  ;;                :target (node "org-roam")
-  ;;                :unnarrowed t
-  ;;                :prepend t
-  ;;                :empty-lines 1)
-  ;;              )
-  
-  ;; (setq! org-roam-capture-templates
-  ;;        '(("d" "default" plain
-  ;;           "%?"
-  ;;           :target (node "${title}")  
-  ;;           :unnarrowed t)))
-  )
-#+end_src
-
 ** org-agenda
+
+*** org-agenda-custom-commands
+#+begin_src elisp
+(after! org-agenda
+  (add-to-list 'org-agenda-custom-commands
+               '("c" "competitions" agenda ""
+                 ((org-agenda-files '("~/orgcalendar.org"))
+                  (org-agenda-time-grid nil)
+                  ))
+               ))
+#+end_src
 
 *** org-agenda-prefix-format
 
@@ -2238,6 +2218,18 @@ telegram client for emacs
       :n "z" #'my/open-at-point-zed)
 #+end_src
 
+* Calendar (khalel)
+#+begin_src elisp :tangle packages.el
+(package! khalel)
+#+end_src
+
+#+begin_src elisp
+(use-package! khalel
+  :after org
+  :config
+  (khalel-add-capture-template))
+#+end_src
+
 * LLM (gptel)
 
 ** config
@@ -2313,7 +2305,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 我甚至可以选择让他在某些目录无视 base-templates
 
 注意，他会无视软连接！！！
-如果 /home/win/Dev 有一个软连接到 ~/Dev
+如果 /home/disk/Dev 有一个软连接到 ~/Dev
 不能写 ~/Dev 只能写原本的链接
 
 #+begin_src elisp 
@@ -2368,7 +2360,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 ** jj
 #+begin_src elisp
 (my/org-register-capture-dir
- "/home/win/Dev/jj"
+ "/home/disk/Dev/jj"
  '("i" "jujutsu dev notes inbox" entry (id "c5b88ac7-c03b-4f60-a5b1-c2b01465b21d") "* %?\n%a\n"))
 #+end_src
 
@@ -2379,7 +2371,7 @@ previous version
  '((nil . ((org-capture-templates . (("j" "jujutsu dev notes" entry (id "c569d17b-0044-4029-bb28-426332d84f0d") "* %?\n%i\n%a" :prepend t)))))))
 
 (dir-locals-set-directory-class
- (expand-file-name "/home/win/Dev/jj/") 'jj-proj)
+ (expand-file-name "/home/disk/Dev/jj/") 'jj-proj)
 #+end_src
 
 ** majutsu
@@ -2388,6 +2380,13 @@ previous version
 (my/org-register-capture-dir
  "~/.config/emacs/.local/straight/repos/majutsu"
  '("i" "majutsu dev notes inbox" entry (id "37acfc0e-808a-4952-9289-a71f21d58047") "* %?\n%a\n" :prepend t))
+#+end_src
+
+** hlissner/dotfiles
+#+begin_src elisp
+(my/org-register-capture-dir
+ "/home/disk/Dev/hlissner-dotfiles"
+ '("i" "hlissner dotfiles notes inbox" entry (id "c83bdc2f-a656-4e6d-baa0-df28db85d3fc") "* %?\n%a\n" :prepend t))
 #+end_src
 
 
