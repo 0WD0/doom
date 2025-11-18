@@ -145,21 +145,21 @@
        ;;fsharp                                                                           ; ML stands for Microsoft's Language
        ;;fstar                                                                            ; (dependent) types and (monadic) effects and Z3
        ;;gdscript                                                                         ; the language you waited for
-       ;;(go +lsp)                                                                        ; the hipster dialect
+       (go +lsp +tree-sitter)                                                             ; the hipster dialect
        ;;(graphql +lsp)                                                                   ; Give queries a REST
-       ;;(haskell +lsp)                                                                   ; a language that's lazier than I am
+       (haskell +lsp +tree-sitter)                                                        ; a language that's lazier than I am
        ;;hy                                                                               ; readability of scheme w/ speed of python
        ;;idris                                                                            ; a language you can depend on
-       json                                                                               ; At least it ain't XML
+       (json +lsp +tree-sitter)                                                           ; At least it ain't XML
        ;;janet                                                                            ; Fun fact: Janet is me!
-       ;;(java +lsp)                                                                      ; the poster child for carpal tunnel syndrome
-       ;;javascript                                                                       ; all(hope(abandon(ye(who(enter(here))))))
+       (java +lsp +tree-sitter)                                                           ; the poster child for carpal tunnel syndrome
+       (javascript +lsp +tree-sitter)                                                     ; all(hope(abandon(ye(who(enter(here))))))
        ;;julia                                                                            ; a better, faster MATLAB
-       ;;kotlin                                                                           ; a better, slicker Java(Script)
+       (kotlin +lsp +tree-sitter)                                                         ; a better, slicker Java(Script)
        (latex +fold +lsp +cdlatex)                                                        ; writing papers in Emacs has never been so fun
        ;;lean                                                                             ; for folks with too much to prove
        ;;ledger                                                                           ; be audit you can be
-       lua                                                                                ; one-based indices? one-based indices
+       (lua +lsp +tree-sitter)                                                            ; one-based indices? one-based indices
        (markdown +grip)                                                                   ; writing docs for people to ignore
        ;;nim                                                                              ; python + lisp at the speed of c
        (nix +lsp +tree-sitter)                                                            ; I hereby declare "nix geht mehr!"
@@ -185,8 +185,8 @@
        ;;swift                                                                            ; who asked for emoji variables?
        ;;terra                                                                            ; Earth and Moon in alignment for performance.
        web                                                                                ; the tubes
-       yaml                                                                               ; JSON, but readable
-       zig                                                                                ; C, but simpler
+       (yaml +lsp +tree-sitter)                                                           ; JSON, but readable
+       (zig +lsp +tree-sitter)                                                            ; C, but simpler
 
        :email
        (mu4e +gmail +mbsync)
