@@ -1126,6 +1126,11 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
                 (my/org-auto-fold-chat-headings)))))
 #+end_src
 
+** export
+#+begin_src elisp :tangle packages.el
+(package! ox-gemini)
+#+end_src
+
 ** org-babel 配置
 
 *** 让 lsp-mode 在 org-src-mode 下工作
@@ -1439,7 +1444,9 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 ** org-passwords.el
 
 #+begin_src emacs-lisp
-(setq org-passwords-file "~/org/passwords.gpg")
+(setq! org-passwords-file "~/org/passwords.gpg")
+(after! better-jumper
+  (add-to-list 'better-jumper-disabled-modes 'org-passwords-mode))
 #+end_src
 
 ** 把一个 region 转换为 org-mode
@@ -1460,7 +1467,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+end_src
 
 #+begin_src emacs-lisp
-(with-eval-after-load 'org-transclusion
+(after! org-transclusion
   (add-to-list 'org-transclusion-extensions 'org-transclusion-indent-mode)
   (require 'org-transclusion-indent-mode))
 ;; (use-package! org-transclusion
@@ -1572,6 +1579,41 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 
 
+* eww 增强
+#+begin_src elisp :tangle packages.el
+(package! shrface)
+#+end_src
+
+#+begin_src elisp :tangle no
+(after! eww
+  ;; (advice-add 'eww-display-html :around #'shrface-render-advice)
+  ;; (add-hook 'eww-after-render-hook #'org-indent-mode)
+  ;; (add-hook 'eww-after-render-hook #'eldoc-mode)
+  ;; (add-hook 'eww-after-render-hook #'eldoc-box-hover-mode)
+  ;; (add-hook 'eww-after-render-hook #'shrface-eww-setup)
+
+  (map! :map eww-mode-map
+        :n "<tab>"      #'shrface-outline-cycle
+        :n "<backtab>"  #'shrface-outline-cycle-buffer
+        :n "C-t"        #'shrface-toggle-bullets
+        :n "C-j"        #'shrface-next-headline
+        :n "C-k"        #'shrface-previous-headline
+        :n "M-l"        #'shrface-links-counsel   ;; or #'shrface-links-helm / #'shrface-links-consult
+        :n "M-h"        #'shrface-headline-counsel)) ;; or #'shrface-headline-helm / #'shrface-headline-consult
+#+end_src
+
+#+begin_src elisp :tangle no
+(after! eww
+  (setq! eww-use-browse-url
+        (rx (| (: bos (| "gopher:" "gemini:"))
+               (regexp eww-use-browse-url)))))
+#+end_src
+
+* elpher
+#+begin_src elisp :tangle packages.el
+(package! elpher)
+#+end_src
+
 * LaTeX editing
 
 #+begin_src emacs-lisp
@@ -1586,7 +1628,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 #+begin_src emacs-lisp
 (after! rime
-  (setq rime-translate-keybindings
+  (setq! rime-translate-keybindings
         '("C-h" "C-f" "C-b" "C-n" "C-p" "<tab>" "C-a" "C-s" "C-c")))
 #+end_src
 
@@ -1696,8 +1738,22 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+begin_src emacs-lisp :tangle no
 (setq! git-commit-major-mode #'org-mode)
 #+end_src
-
 注意当这里设为 org-mode 的时候，无法正常高亮！
+
+#+begin_src elisp
+(setq! magit-repository-directories '(("~/Dev" . 2)))
+#+end_src
+
+*** magit-todos
+#+begin_src elisp :tangle packages.el
+(package! magit-todos)
+#+end_src
+
+#+begin_src elisp
+(use-package! magit-todos
+  :after magit
+  :config (magit-todos-mode 1))
+#+end_src
 
 ** orgit
 #+begin_src emacs-lisp
@@ -1708,12 +1764,12 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 我的配置都放在了 [[doom-module:tools majutsu]]
 
 
-#+begin_src emacs-lisp
-(setq! majutsu-log-signature
-       '[:call 'format_short_signature [:author]])
-
-
-(setq! majutsu-message-input-method 'script)
+#+begin_src elisp
+(setq! majutsu-display-functions
+       '((log . pop-to-buffer)
+         (op-log . pop-to-buffer)
+         (diff . pop-to-buffer-same-window)
+         (message . pop-to-buffer)))
 #+end_src
 
 * Program
@@ -1823,6 +1879,21 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
             (lambda ()
               (setq-local tab-width 4)
               (setq-local indent-tabs-mode nil)))
+#+end_src
+
+*** Rust
+
+**** pest
+#+begin_src elisp :tangle packages.el
+(package! pest-mode
+  :recipe (:host github :repo "ksqsf/pest-mode"))
+#+end_src
+
+#+begin_src elisp
+(use-package! pest-mode
+  :mode "\\.pest\\'"
+  :hook (pest-mode . flymake-mode)
+  )
 #+end_src
 
 ** lsp-mode config
@@ -1986,6 +2057,11 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 #+begin_src emacs-lisp
 (setq! indent-tabs-mode nil)
 (setq! tab-width 4)
+#+end_src
+
+#+begin_src elisp
+(setq! sentence-end-double-space t
+       fill-column 70)
 #+end_src
 
 ** bibilo 模块设置
@@ -2311,7 +2387,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
                  ;; ("X-Proxy"       (getenv "HTTP_PROXY")
                  )       
         :models '(
-                  (gpt-5      :capabilities (media tool json url))
+                  (gpt-5.1     :capabilities (media tool json url))
                   (gpt-4o      :capabilities (media tool json url))
                   (gpt-4o-mini :capabilities (media tool json url)))))
 
@@ -2391,6 +2467,13 @@ previous version
 
 (dir-locals-set-directory-class
  (expand-file-name "/home/disk/Dev/jj/") 'jj-proj)
+#+end_src
+
+** opencode
+#+begin_src elisp
+(my/org-register-capture-dir
+ "/home/disk/Dev/opencode"
+ '("i" "opencode dev notes inbox" entry (id "fdaf9709-724b-42ae-b409-ce5702e429a5") "* %?\n%a\n"))
 #+end_src
 
 ** majutsu
