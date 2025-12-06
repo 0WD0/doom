@@ -222,6 +222,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-src-tab-acts-natively t
       org-id-link-consider-parent-id t
       ;; org-confirm-babel-evaluate nil
+      org-export-use-babel nil
       org-edit-src-content-indentation 0
       org-link-search-must-match-exact-headline nil ;; 这东西的默认设置是真逆天
       )
@@ -1131,6 +1132,52 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 (package! ox-gemini)
 #+end_src
 
+#+begin_src elisp :tangle no
+(defun my/org-slugify (s)
+  (let* ((s (downcase (replace-regexp-in-string "[^[:alnum:]]+" "-" s)))
+         (s (replace-regexp-in-string "-+" "-" s))
+         (s (replace-regexp-in-string "\\`-\\|-\\'" "" s)))
+    (if (string-match-p "[[:alnum:]]" s) s "untitled")))
+
+(defun my/org-export-file-name-postprocess (value)
+  (my/org-slugify
+   (if (org-string-nw-p value)                       ;用户输入了值就规整它
+       value
+     (or (org-entry-get nil "TITLE")                 ;否则用标题/heading
+         (nth 4 (org-heading-components))
+         (file-name-base (or (buffer-file-name)      ;或文件名
+                             (buffer-name)))
+         "untitled"))))
+
+(after! org
+  (add-to-list 'org-properties-postprocess-alist
+               '("EXPORT_FILE_NAME" . my/org-export-file-name-postprocess)))
+#+end_src
+
+
+#+begin_src elisp
+(after! org
+  (require 'org-roam)
+  (defun my/org-roam-export-file-name (value)
+    "为 EXPORT_FILE_NAME 生成/规整 slug，优先用 org-roam 的规则。"
+    (let* ((node (org-roam-node-at-point nil))         ;当前节点或 nil
+           (title (or (and node (org-roam-node-title node))
+                      (org-entry-get nil "TITLE")
+                      (nth 4 (org-heading-components))
+                      value
+                      "")))
+      (cond
+       ;; 用户输入了值：用 org-roam 的 slugify 规整它
+       ((org-string-nw-p value) (org-roam-node-slugify value))
+       ;; 没输入值但在 org-roam 节点：用节点 slug（唯一且含 ID 策略）
+       (node (org-roam-node-slug node))
+       ;; 其他情况：fallback slugify 当前标题
+       (t (org-roam-node-slugify title)))))
+
+  (add-to-list 'org-properties-postprocess-alist
+               '("EXPORT_FILE_NAME" . my/org-roam-export-file-name)))
+#+end_src
+
 ** org-babel 配置
 
 *** 让 lsp-mode 在 org-src-mode 下工作
@@ -1531,6 +1578,20 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+begin_src elisp :tangle packages.el
 (package! org-roam-hugo
   :recipe (:local-repo "org-roam-hugo"))
+
+(package! ox-hugo
+  :recipe (:local-repo "ox-hugo"))
+#+end_src
+
+#+begin_src elisp
+(use-package! org-roam-hugo
+  :after ox-hugo org-roam)
+
+(setq! org-hugo-external-file-extensions-allowed-for-copying '("png" "jpg"))
+
+(after! ox
+  (require 'ox-hugo)
+  (advice-add 'org-hugo--copy-ltximg-maybe :override (lambda (&rest _) nil)))
 #+end_src
 
 ** Deft :ARCHIVE:
@@ -1643,8 +1704,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+begin_src emacs-lisp :tangle no
 (after! org
   (require 'cnfonts)
-  (cnfonts-mode 1)
-  )
+  (cnfonts-mode 1))
 (setq! cnfonts-use-face-font-rescale t)
 #+end_src
 
@@ -2060,7 +2120,7 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 #+end_src
 
 #+begin_src elisp
-(setq! sentence-end-double-space t
+(setq! sentence-end-double-space nil
        fill-column 70)
 #+end_src
 
@@ -2449,21 +2509,21 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 #+begin_src elisp
 (my/org-register-capture-dir
  "/home/_WD_/.config/emacs/.local/straight/repos/magit"
- '("i" "magit dev notes inbox" entry (id "823e85ea-5028-4c57-bfca-b7c76bcf0f9a") "* %?\n%a\n"))
+ '("i" "magit dev notes inbox" entry (id "823e85ea-5028-4c57-bfca-b7c76bcf0f9a") "* %?\n%A\n"))
 #+end_src
 
 ** jj
 #+begin_src elisp
 (my/org-register-capture-dir
  "/home/disk/Dev/jj"
- '("i" "jujutsu dev notes inbox" entry (id "c5b88ac7-c03b-4f60-a5b1-c2b01465b21d") "* %?\n%a\n"))
+ '("i" "jujutsu dev notes inbox" entry (id "c5b88ac7-c03b-4f60-a5b1-c2b01465b21d") "* %?\n%A\n"))
 #+end_src
 
 previous version
 #+begin_src elisp :tangle no
 (dir-locals-set-class-variables
  'jj-proj
- '((nil . ((org-capture-templates . (("j" "jujutsu dev notes" entry (id "c569d17b-0044-4029-bb28-426332d84f0d") "* %?\n%i\n%a" :prepend t)))))))
+ '((nil . ((org-capture-templates . (("j" "jujutsu dev notes" entry (id "c569d17b-0044-4029-bb28-426332d84f0d") "* %?\n%i\n%A" :prepend t)))))))
 
 (dir-locals-set-directory-class
  (expand-file-name "/home/disk/Dev/jj/") 'jj-proj)
@@ -2473,7 +2533,7 @@ previous version
 #+begin_src elisp
 (my/org-register-capture-dir
  "/home/disk/Dev/opencode"
- '("i" "opencode dev notes inbox" entry (id "fdaf9709-724b-42ae-b409-ce5702e429a5") "* %?\n%a\n"))
+ '("i" "opencode dev notes inbox" entry (id "fdaf9709-724b-42ae-b409-ce5702e429a5") "* %?\n%A\n"))
 #+end_src
 
 ** majutsu
@@ -2481,16 +2541,24 @@ previous version
 #+begin_src elisp
 (my/org-register-capture-dir
  "~/.config/emacs/.local/straight/repos/majutsu"
- '("i" "majutsu dev notes inbox" entry (id "37acfc0e-808a-4952-9289-a71f21d58047") "* %?\n%a\n" :prepend t))
+ '("i" "majutsu dev notes inbox" entry (id "37acfc0e-808a-4952-9289-a71f21d58047") "* %?\n%A\n" :prepend t))
 #+end_src
 
 ** hlissner/dotfiles
 #+begin_src elisp
 (my/org-register-capture-dir
  "/home/disk/Dev/hlissner-dotfiles"
- '("i" "hlissner dotfiles notes inbox" entry (id "c83bdc2f-a656-4e6d-baa0-df28db85d3fc") "* %?\n%a\n" :prepend t))
+ '("i" "hlissner dotfiles notes inbox" entry (id "c83bdc2f-a656-4e6d-baa0-df28db85d3fc") "* %?\n%A\n" :prepend t))
 #+end_src
 
+
+** ox-hugo
+
+#+begin_src elisp
+(my/org-register-capture-dir
+ "/home/_WD_/.config/emacs/.local/straight/repos/ox-hugo"
+ '("i" "ox-hugo notes inbox" entry (id "f7b93568-e35a-449e-9a53-592676a3ae23") "* %?\n%A\n" :prepend t))
+#+end_src
 
 * Org-mode footnote hover preview :ATTACH:
 :PROPERTIES:
