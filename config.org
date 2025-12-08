@@ -221,15 +221,15 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-src-fontify-natively t
       org-src-tab-acts-natively t
       org-id-link-consider-parent-id t
-      ;; org-confirm-babel-evaluate nil
+      org-confirm-babel-evaluate t
       org-export-use-babel nil
       org-edit-src-content-indentation 0
       org-link-search-must-match-exact-headline nil ;; 这东西的默认设置是真逆天
       )
 #+end_src
 
-#+begin_src emacs-lisp :tangle no
-(with-eval-after-load 'org
+#+begin_src emacs-lisp
+(after! org
   (let ((cn-punct "，。、：；！？“”‘’（）【】《》〈〉「」『』—……·"))
     (setcar org-emphasis-regexp-components
             (concat (car org-emphasis-regexp-components) cn-punct))
@@ -238,7 +238,7 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
     (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)))
 #+end_src
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 (after! org
   (dolist (i '(0 1))
     (setcar (nthcdr i org-emphasis-regexp-components)
@@ -1082,7 +1082,7 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 
 标题需要根据拼音的字典序排序！用 pyim 的函数实现了
 
-** HOLD 自动为 =:chat:= 标签添加 folded VISIBILITY
+** 自动为 =:chat:= 标签添加 folded VISIBILITY :ARCHIVE:
 
 还未能正常工作
 
@@ -1127,7 +1127,7 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
                 (my/org-auto-fold-chat-headings)))))
 #+end_src
 
-** export
+** Export relateded
 #+begin_src elisp :tangle packages.el
 (package! ox-gemini)
 #+end_src
@@ -1176,6 +1176,56 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 
   (add-to-list 'org-properties-postprocess-alist
                '("EXPORT_FILE_NAME" . my/org-roam-export-file-name)))
+               #+end_src
+
+** org-link
+
+=[[kbd:]]= 链接导出
+#+begin_src elisp
+(after! ox
+  (require 'helpful)
+  (require 'browse-at-remote)
+  (defun my/helpful-remote-url (sym callable-p)
+    (-let* (((buf pos opened) (helpful--definition sym callable-p)))
+      (unless (and buf pos) (error "找不到 %s 的源码位置" sym))
+      (unwind-protect
+          (with-current-buffer buf
+            (save-restriction
+              (widen)
+              (let* ((start (line-number-at-pos pos))
+                     (end   (when callable-p
+                              (save-excursion (goto-char pos) (end-of-defun) (line-number-at-pos))))
+                     (file  (buffer-file-name buf)))
+                (browse-at-remote--file-url file start end))))
+        (when opened (kill-buffer buf)))))
+
+  (defun my/org-export-helpful-link (type path desc backend)
+    "根据 TYPE(fn/var) 与 PATH 符号生成远程源码链接用于导出。"
+    (let* ((sym (intern path))
+           (url (ignore-errors (my/helpful-remote-url sym (eq type 'fn))))
+           (text (or desc path)))
+      (pcase backend
+        ((or `md `gfm `html)
+         (if url (format "<a href=\"%s\"><code>%s</code></a>" url text) text))
+        (`latex
+         (if url (format "\\href{%s}{\\texttt{%s}}" url text) text))
+        (_ text))))
+
+  (org-link-set-parameters
+   "kbd"
+   :export (lambda (path desc backend)
+             (let ((text (or desc path)))
+               (pcase backend
+                 ((or `md `html)  (format "<kbd>%s</kbd>" text))
+                 (`latex (format "\\texttt{%s}" text))
+                 (_ text)))))
+  (org-link-set-parameters
+   "fn"
+   :export (apply-partially #'my/org-export-helpful-link 'fn))
+
+  (org-link-set-parameters
+   "var"
+   :export (apply-partially #'my/org-export-helpful-link 'var)))
 #+end_src
 
 ** org-babel 配置
@@ -1587,7 +1637,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 (use-package! org-roam-hugo
   :after ox-hugo org-roam)
 
-(setq! org-hugo-external-file-extensions-allowed-for-copying '("png" "jpg"))
+(setq! org-hugo-auto-update-id-locations nil)
 
 (after! ox
   (require 'ox-hugo)
