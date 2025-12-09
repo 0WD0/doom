@@ -221,11 +221,17 @@ org 是一个强大的笔记和文档管理工具，Doom Emacs 提供了许多�
       org-src-fontify-natively t
       org-src-tab-acts-natively t
       org-id-link-consider-parent-id t
-      org-confirm-babel-evaluate t
+      org-src-preserve-indentation nil
       org-export-use-babel nil
       org-edit-src-content-indentation 0
       org-link-search-must-match-exact-headline nil ;; 这东西的默认设置是真逆天
       )
+#+end_src
+
+不清楚为什么这个配置被覆盖了
+#+begin_src elisp
+(after! org
+  (setq! org-confirm-babel-evaluate t))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -1180,7 +1186,21 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 
 ** org-link
 
-=[[kbd:]]= 链接导出
+现在支持了 =kbd:= =fn:= 链接导出
+
+我觉得我需要一个批出理脚本，需要加载尽可能多的包？
+https://emacs.stackexchange.com/questions/33788/use-package-load-all-defined-packages
+
+TODO: =var:= =cmd:=
+
+TODO: emacs 内置函数（gz 文件里的）链接会失效
+
+TODO: export to org
+适合导出为文档，
+把本机设置的一些非公认的链接转换为内置的形式，
+比如把 =kbd:= 转换回 ~xxx~；
+把 =fn:= 链接转换为正常的 https 链接。
+
 #+begin_src elisp
 (after! ox
   (require 'helpful)
@@ -1192,9 +1212,14 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
           (with-current-buffer buf
             (save-restriction
               (widen)
-              (let* ((start (line-number-at-pos pos))
+              ;; 这里传“位置”给 browse-at-remote--file-url，它自己会算行号
+              (let* ((start pos)
                      (end   (when callable-p
-                              (save-excursion (goto-char pos) (end-of-defun) (line-number-at-pos))))
+                              (save-excursion
+                                (goto-char pos)
+                                (end-of-defun)
+                                (skip-chars-backward "\n\r")
+                                (point))))
                      (file  (buffer-file-name buf)))
                 (browse-at-remote--file-url file start end))))
         (when opened (kill-buffer buf)))))
@@ -1206,7 +1231,7 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
            (text (or desc path)))
       (pcase backend
         ((or `md `gfm `html)
-         (if url (format "<a href=\"%s\"><code>%s</code></a>" url text) text))
+         (if url (format "<a href=\"%s\">%s</a>" url text) text))
         (`latex
          (if url (format "\\href{%s}{\\texttt{%s}}" url text) text))
         (_ text))))
@@ -1538,6 +1563,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 (use-package! ox-typst
   :after org)
 #+end_src
+
 ** org-passwords.el
 
 #+begin_src emacs-lisp
@@ -1612,12 +1638,6 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 #+end_src
 
-** TODO 在 roam 链接上按 K lookup 打开临时预览窗口
-
-预览窗口是指按 q 退出（能回到上一层预览窗口就更好了）
-
-还有比如说在侧边打开而不是替换原窗口
-
 ** ox-hugo 
 #+begin_src emacs-lisp :tangle no
 (after! org
@@ -1630,10 +1650,11 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
   :recipe (:local-repo "org-roam-hugo"))
 
 (package! ox-hugo
-  :recipe (:local-repo "ox-hugo"))
+  :recipe (:host github :repo "0WD0/ox-hugo" :nonrecursive t))
 #+end_src
 
 #+begin_src elisp
+(setq! org-hugo-section "")
 (use-package! org-roam-hugo
   :after ox-hugo org-roam)
 
@@ -2580,6 +2601,7 @@ previous version
 #+end_src
 
 ** opencode
+
 #+begin_src elisp
 (my/org-register-capture-dir
  "/home/disk/Dev/opencode"
@@ -2595,12 +2617,12 @@ previous version
 #+end_src
 
 ** hlissner/dotfiles
+
 #+begin_src elisp
 (my/org-register-capture-dir
  "/home/disk/Dev/hlissner-dotfiles"
  '("i" "hlissner dotfiles notes inbox" entry (id "c83bdc2f-a656-4e6d-baa0-df28db85d3fc") "* %?\n%A\n" :prepend t))
 #+end_src
-
 
 ** ox-hugo
 
