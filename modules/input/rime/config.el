@@ -23,13 +23,6 @@
                          #'evil-pinyin--build-regexp-string ;;貌似正常情况下不会有 pyim 依赖，下面那个 else 就不改了
                        #'pyim-cregexp-build)))))
 
-(use-package! pangu-spacing
-  :hook (text-mode . pangu-spacing-mode)
-  :config
-  ;; Always insert `real' space in org-mode.
-  ;; (setq-hook! 'org-mode-hook pangu-spacing-real-insert-separtor t)
-  )
-
 (use-package! evil-pinyin
   :when (modulep! :editor evil +everywhere)
   :after evil

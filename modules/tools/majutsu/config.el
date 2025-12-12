@@ -2,11 +2,7 @@
 
 ;; Declare autoloaded commands via use-package! for lazy loading
 (use-package! majutsu
-  :commands (majutsu majutsu-log
-                     majutsu-rebase-transient majutsu-bookmark-transient majutsu-git-transient
-                     majutsu-commit majutsu-describe majutsu-diff majutsu-diffedit-emacs majutsu-diffedit-smerge
-                     majutsu-log-refresh majutsu-dispatch majutsu-squash-transient
-                     majutsu-abandon majutsu-undo majutsu-new majutsu-enter-dwim majutsu-log-goto-@))
+  :defer-incrementally (dash f s with-editor package eieio transient))
 
 ;; Keybindings: `SPC j` prefix (evil leader)
 (when (modulep! :editor evil)

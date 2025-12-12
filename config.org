@@ -690,6 +690,28 @@ diary-course 是一个 sexp diary entry
 
 ** org-roam 增强
 
+*** org-roam-ui
+#+begin_src elisp :tangle packages.el
+(package! org-roam-ui)
+#+end_src
+
+#+begin_src elisp
+(use-package! websocket
+    :after org-roam)
+
+(use-package! org-roam-ui
+    :after org-roam ;; or :after org
+;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
+;;         a hookable mode anymore, you're advised to pick something yourself
+;;         if you don't care about startup time, use
+;;  :hook (after-init . org-roam-ui-mode)
+    :config
+    (setq org-roam-ui-sync-theme t
+          org-roam-ui-follow t
+          org-roam-ui-update-on-save t
+          org-roam-ui-open-on-start t))
+#+end_src
+
 *** 快速打开 =:ROAM_REFS:=
 
 一般来说不会有很多 ROAM_REFS
@@ -1201,6 +1223,8 @@ TODO: export to org
 比如把 =kbd:= 转换回 ~xxx~；
 把 =fn:= 链接转换为正常的 https 链接。
 
+TODO: 添加 info 链接
+
 #+begin_src elisp
 (after! ox
   (require 'helpful)
@@ -1709,7 +1733,17 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
         org-modern-table nil))
 #+end_src
 
+* paw
 
+#+begin_src elisp :tangle packages.el
+;; (package! paw :recipe (:host github :repo "chenyanming/paw" :files ("*")))
+(package! paw :recipe (:local-repo "paw"))
+#+end_src
+
+#+begin_src elisp
+(after! paw
+  (require 'org-download))
+#+end_src
 
 * eww 增强
 #+begin_src elisp :tangle packages.el
@@ -2197,8 +2231,10 @@ corfu 的补全可能会覆盖上这个自动上屏的 copilot 的补全，而 c
 
 ** bibilo 模块设置
 #+begin_src emacs-lisp
-(setq! citar-bibliography '("/home/disk/Books/mybib.bib")
-       citar-open-entry-function 'citar-open-entry-in-zotero)
+(setq! citar-bibliography '("~/zotero-all.bib")
+       citar-open-entry-function 'citar-open-entry-in-zotero
+       citar-org-roam-note-title-template "${title}"
+       )
 
 (map!
  :map org-mode-map
