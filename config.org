@@ -1401,7 +1401,36 @@ TODO: 添加 info 链接
 **** LaTeX 预览渲染进程设置
 
 #+begin_src emacs-lisp
-(setq org-preview-latex-default-process 'dvisvgm)
+(after! org
+  ;; 任选其一：'dvisvgm (SVG 更清晰) 或 'imagemagick (PNG)
+  (setq! org-preview-latex-default-process 'dvisvgm)
+
+  (let ((var 'org-preview-latex-process-alist))
+    ;; dvi -> svg (用 lualatex 生成 dvi，避免 fontspec+pdftex 崩)
+    (set var (assoc-delete-all 'dvisvgm (symbol-value var)))
+    (add-to-list var
+                 `(dvisvgm
+                   :programs ("lualatex" "dvisvgm")
+                   :description "dvi > svg (lualatex)"
+                   :message "You need: lualatex and dvisvgm."
+                   :image-input-type "dvi"
+                   :image-output-type "svg"
+                   :image-size-adjust (1.7 . 1.5)
+                   :latex-compiler ("lualatex -interaction nonstopmode -output-format=dvi -output-directory %o %f")
+                   :image-converter ("dvisvgm %f --no-fonts --exact-bbox --scale=%S --output=%O")))
+
+    ;; pdf -> png (如果你更想要 PNG，就把 default-process 设成 'imagemagick)
+    (set var (assoc-delete-all 'imagemagick (symbol-value var)))
+    (add-to-list var
+                 `(imagemagick
+                   :programs ("lualatex" "convert")
+                   :description "pdf > png (lualatex)"
+                   :message "You need: lualatex and imagemagick(convert)."
+                   :image-input-type "pdf"
+                   :image-output-type "png"
+                   :image-size-adjust (1.0 . 1.0)
+                   :latex-compiler ("lualatex -interaction nonstopmode -output-directory %o %f")
+                   :image-converter ("convert -density %D -trim -antialias %f -quality 100 %O")))))
 #+end_src
 
 **** LaTeX 预览图像缩放
@@ -1844,6 +1873,14 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 * evil 相关
 
+** transient 的多余绑定
+
+#+begin_src elisp
+(after! transient
+  (map! :map transient-map
+        "C-u" nil))
+#+end_src
+
 ** insert mode 中 C-n/p 设置为上下行
 
 因为它本来是补全相关的，所以只要改 corfu 的设置就行了
@@ -1916,7 +1953,8 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 注意当这里设为 org-mode 的时候，无法正常高亮！
 
 #+begin_src elisp
-(setq! magit-repository-directories '(("~/Dev" . 2)))
+(setq! magit-repository-directories '(("~/Dev" . 2))
+       magit-format-file-function #'magit-format-file-nerd-icons)
 #+end_src
 
 *** magit-todos
@@ -1940,11 +1978,11 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 
 #+begin_src elisp
-(setq! majutsu-display-functions
-       '((log . pop-to-buffer)
-         (op-log . pop-to-buffer)
-         (diff . pop-to-buffer-same-window)
-         (message . pop-to-buffer)))
+(setq! majutsu-display-functions '((log . pop-to-buffer)
+                                   (op-log . pop-to-buffer)
+                                   (diff . pop-to-buffer-same-window)
+                                   (message . pop-to-buffer))
+       majutsu-executable "jjj")
 #+end_src
 
 * Program
@@ -1957,14 +1995,21 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 #+begin_src emacs-lisp
 ;; tree-sitter 模式的缩进设置
-(setq c-ts-mode-indent-offset 4)
+(setq! c-ts-mode-indent-offset 4)
 #+end_src
 
-**** 运行与调试
+**** gdb
+
+#+begin_src elisp
+(setq! gdb-many-windows t)
+#+end_src
+
+**** dape :ARCHIVE:
 
 我希望使用 gdb 调试，怎么写 dape 配置？
+事实上我没有使用 dape 的必要
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 (after! dape
   (add-to-list 'dape-configs
 	       `(debugpy-flask
@@ -2057,6 +2102,11 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 #+end_src
 
 *** Rust
+
+#+begin_src elisp
+(when (modulep! :lang rust)
+  (add-to-list '+lookup-provider-url-alist '("Docs.rs" "https://docs.rs/releases/search?query=%s")))
+#+end_src
 
 **** pest
 #+begin_src elisp :tangle packages.el
@@ -2676,6 +2726,47 @@ previous version
 (my/org-register-capture-dir
  "/home/_WD_/.config/emacs/.local/straight/repos/ox-hugo"
  '("i" "ox-hugo notes inbox" entry (id "f7b93568-e35a-449e-9a53-592676a3ae23") "* %?\n%A\n" :prepend t))
+#+end_src
+
+* Pdf-Tools
+#+begin_src elisp
+(defun my/pdf--clipboard-cmd ()
+  (cond
+   ((executable-find "wl-copy") (list "wl-copy" "--type" "image/png"))
+   ((executable-find "xclip")   (list "xclip" "-selection" "clipboard" "-t" "image/png" "-i"))
+   (t (user-error "Need wl-copy (Wayland) or xclip (X11)"))))
+
+(defun my/pdf--clipboard-send-bytes (bytes)
+  (let* ((cmd (my/pdf--clipboard-cmd))
+         (p (make-process :name "pdf->clipboard"
+                          :command cmd
+                          :connection-type 'pipe
+                          :noquery t)))
+    (set-process-coding-system p 'binary 'binary)
+    (process-send-string p (if (multibyte-string-p bytes) (string-make-unibyte bytes) bytes))
+    (process-send-eof p)
+    (while (process-live-p p) (accept-process-output p 0.05))))
+
+(defun my/pdf-view-copy-page-image-to-clipboard (&optional force-width)
+  "复制当前页 PNG 到系统剪贴板。
+  无前缀：直接复制当前显示页的缓存 PNG（最快）。
+  C-u：提示输入渲染宽度，强制重新渲染并复制。"
+  (interactive
+   (list (when current-prefix-arg
+           (read-number "Render width (px): " (car (pdf-view-image-size))))))
+  (unless (derived-mode-p 'pdf-view-mode) (user-error "Not in pdf-view-mode"))
+  (require 'pdf-cache)
+  (let* ((img (and (not force-width) (pdf-view-current-image)))
+         (data (or (and img (plist-get (cdr img) :data))
+                   (pdf-cache-renderpage (pdf-view-current-page) (or force-width (car (pdf-view-image-size)))))))
+    (unless (and (stringp data) (> (length data) 0)) (user-error "No image data"))
+    (my/pdf--clipboard-send-bytes data)
+    (message "Copied page image to clipboard")))
+
+(after! pdf-view
+  (map! :map pdf-view-mode-map
+        :localleader
+        "y" #'my/pdf-view-copy-page-image-to-clipboard))
 #+end_src
 
 * Org-mode footnote hover preview :ATTACH:
