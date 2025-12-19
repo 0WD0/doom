@@ -1142,14 +1142,14 @@ Inserts each subtree, adds backlinks, TOC, and uses xelatex+ctex for CJK."
 
   ;; 当标签改变时检查
   (add-hook 'org-after-tags-change-hook #'my/org-add-visibility-on-tag-change)
-  
+
   ;; 打开文件时扫描整个文件
-  (add-hook 'org-mode-hook 
+  (add-hook 'org-mode-hook
             (lambda ()
               (run-with-idle-timer 0.1 nil #'my/org-auto-fold-chat-headings)))
-  
+
   ;; 保存文件前自动添加
-  (add-hook 'before-save-hook 
+  (add-hook 'before-save-hook
             (lambda ()
               (when (eq major-mode 'org-mode)
                 (my/org-auto-fold-chat-headings)))))
@@ -1367,13 +1367,23 @@ TODO: 添加 info 链接
 #+end_src
 
 ** latex 集成
+*** 导出配置
+
+#+begin_src elisp
+(setq! org-export-preserve-breaks t
+       org-latex-compiler "lualatex")
+#+end_src
+
 *** 添加 LaTeX 包
 
 会在导出的时候自动加到文件里
 #+begin_src emacs-lisp
 (after! org
-  (dolist (pkg '("amsmath" "amssymb" "mathtools" "mathrsfs"))
-    (add-to-list 'org-latex-packages-alist `("" ,pkg t))))
+  (dolist (pkg '("amsmath" "amssymb" "mathtools" "mathrsfs" "ctex"))
+    (add-to-list 'org-latex-packages-alist `("" ,pkg t)))
+
+  (add-to-list 'org-latex-packages-alist '("most" "tcolorbox" t))
+  (add-to-list 'org-latex-packages-alist "\\newenvironment{notes}{\\begin{tcolorbox}[colback=gray!8, colframe=gray!30, boxrule=0.4pt, arc=2pt, left=6pt, right=6pt, top=4pt, bottom=4pt]\\small}{\\end{tcolorbox}}"))
 #+end_src
 
 *** 行间latex块背景色
@@ -1662,7 +1672,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 
 #+end_src
 
-** ox-hugo 
+** ox-hugo
 #+begin_src emacs-lisp :tangle no
 (after! org
   (setq org-id-extra-files (append (directory-files-recursively org-roam-directory "\.org$")
@@ -2034,7 +2044,7 @@ STRING, TOFILE, OPTIONS, BUFFER, and PROCESSING-TYPE are the original arguments.
 (setq! lsp-pyright-langserver-command "basedpyright")
 #+end_src
 
- 
+
 **** dape config
 自带的 debugpy 配置不能正常工作。。。
 
@@ -2502,7 +2512,7 @@ telegram client for emacs
 ** api-keys
 #+begin_src emacs-lisp
 (defvar aihubmix-api-key
-  (or (getenv "AIHUBMIX_API_KEY") 
+  (or (getenv "AIHUBMIX_API_KEY")
       "")
   "AiHubMix API key.
 https://aihubmix.com/
@@ -2548,11 +2558,11 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
         :header (gptel-header+
                  ("APP-Code"       "MLTG2087") ;这是在白嫖 cherry-studio 的优惠码
                  ;; 下面是示例，最近写宏写爽了
-                 ;; ("X-Org-ID"      "42")                         
-                 ;; ("X-Trace"       (format-time-string "%s")   
+                 ;; ("X-Org-ID"      "42")
+                 ;; ("X-Trace"       (format-time-string "%s")
                  ;; ("X-Proxy"       (getenv "HTTP_PROXY")
                  ;; ("X-Proxy"       (getenv "HTTP_PROXY")
-                 )       
+                 )
         :models '(
                   (gpt-5.1     :capabilities (media tool json url))
                   (gpt-4o      :capabilities (media tool json url))
@@ -2561,7 +2571,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 (setq! gptel-model 'gpt-5)
 #+end_src
 
-* org-capture configs for Project Notes 
+* org-capture configs for Project Notes
 
 基于 dir-locals 的 org-capture 配置的优势在于：完全不用担心按键冲突，同一个键对不同的项目可以有不同的跳转效果
 我甚至可以选择让他在某些目录无视 base-templates
@@ -2570,7 +2580,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
 如果 /home/disk/Dev 有一个软连接到 ~/Dev
 不能写 ~/Dev 只能写原本的链接
 
-#+begin_src elisp 
+#+begin_src elisp
 (require 'org-roam) ;; 这里的确没办法，如果要在 capture 里用 org-roam-node-fined 就得先加载，不然打开的第一个 buffer 得不到正确的 templates
 (defvar my/org-capture-base-templates
   '(("r" "org-roam capture" entry #'org-roam-node-find "* %u %?\n%i\n%a" :prepend t)
@@ -2596,7 +2606,7 @@ KVS elements are of the form (KEY VALUE-FORM). VALUE-FORM is evaluated at reques
     (dir-locals-set-directory-class abs-dir class)
     class))
   #+end_src
-  
+
 ** examples
 #+begin_src elisp :tangle no
 (my/org-register-capture-dir

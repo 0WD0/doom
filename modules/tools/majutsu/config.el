@@ -12,6 +12,6 @@
          ;; :desc "Rebase menu"       "r" #'majutsu-rebase-transient
          ;; :desc "Bookmark menu"     "b" #'majutsu-bookmark-transient
          ;; :desc "Git menu"          "g" #'majutsu-git-transient
-         :desc "Commit"            "c" #'majutsu-commit
-         :desc "Describe"          "d" #'majutsu-describe
-         :desc "Diff"              "D" #'majutsu-diff)))
+         :desc "Commit"            "C" #'majutsu-commit
+         :desc "Describe"          "c" #'majutsu-describe
+         :desc "Diff"              "d" #'majutsu-diff)))
